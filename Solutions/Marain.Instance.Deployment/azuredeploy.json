@@ -1,0 +1,66 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "marainPrefix": {
+      "type": "string",
+      "defaultValue": "mar"
+    },
+    "environmentSuffix": {
+      "type": "string"
+    },
+    "useApim": {
+      "type": "bool",
+      "defaultValue": false
+    },
+    "_artifactsLocation": {
+      "type": "string"
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring"
+    }
+  },
+  "variables": {
+    "resourceNameRoot": "[concat(parameters('marainPrefix'), parameters('environmentSuffix'))]",
+    "appInsightsName": "[concat(variables('resourceNameRoot'), 'ai')]",
+    "apimName": "[concat(variables('resourceNameRoot'), 'apim')]",
+    "tagValues": {
+      "marainEnvironment": "[variables('resourceNameRoot')]"
+    }
+  },
+  "resources": [
+    {
+      "name": "app-insights",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('_artifactsLocation'), '/Templates/app-insights.json', parameters('_artifactsLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "appName": {
+            "value": "[variables('appInsightsName')]"
+          },
+          "appType": {
+            "value": "web"
+          },
+          "appLocation": {
+            "value": "[resourceGroup().location]"
+          },
+          "tagValues": {
+            "value": "[variables('tagValues')]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "instrumentationKey": {
+      "type": "string",
+      "value": "[reference('app-insights').outputs.instrumentationKey.value]"
+    }
+  }
+}

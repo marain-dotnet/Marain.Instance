@@ -1,0 +1,10 @@
+{
+  "services": {
+    "Marain.Tenancy": {
+      "release": "0.3.0-idg10-deployment-spike.26"
+    },
+    "Marain.Operations": {
+      "release": "0.9.0-idg10-deployment-spike.4"
+    }
+  }
+}

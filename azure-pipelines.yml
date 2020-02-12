@@ -1,0 +1,22 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: AzurePowerShell@5
+  displayName: 'Deploy dev environment'
+  inputs:
+    azureSubscription: 'endjin-internal-development(98333d29-7302-4f93-a51d-70c49ca7e180)'
+    ScriptType: 'FilePath'
+    ScriptPath: 'Solutions/Marain.Instance.Deployment/Deploy-MarainInstanceInfrastructure.ps1'
+    ScriptArguments: '-AzureLocation northeurope -EnvironmentSuffix dev -AadTenantId 0f621c67-98a0-4ed5-b5bd-31a35be41e29 -SubscriptionId 98333d29-7302-4f93-a51d-70c49ca7e180 -InstanceManifest $(Build.SourcesDirectory)/Solutions/InstanceManifests/Development.json -AadAppIds @{"TenancyAppId"="f1815180-9920-477b-95cc-7b93c2cd5de0";"OperationsControlAppId"="97642f9e-efcb-47c2-8c1e-bf21a3e9cdf6"}'
+    preferredAzurePowerShellVersion: '2.6.0'
+    pwsh: true
+    workingDirectory: 'Solutions/Marain.Instance.Deployment'

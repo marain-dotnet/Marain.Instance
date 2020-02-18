@@ -227,7 +227,7 @@ class MarainServiceDeploymentContext {
         if (-not $this.InstanceContext.GraphHeaders) {
             $AppId = $this.InstanceContext.AadAppIds[$AppNameWithSuffix]
             if (-not $AppId) {
-                Write-Error ("AppId for {0} ({1}) was not supplied in AadAppIds argument, and access to the Azure AD graph is not available (which it will not be when running on a build agent). Either run this in a context where graph access is available, or pass this app id in as an argument." -f $AppNameSuffix, $AppId)
+                Write-Error "AppId for $AppNameWithSuffix was not supplied in AadAppIds argument, and access to the Azure AD graph is not available (which it will not be when running on a build agent). Either run this in a context where graph access is available, or pass this app id in as an argument." 
             }
             $adApp = [AzureAdApp]::new($this, $AppId)
             $this.AdApps[$AppNameWithSuffix] = $adApp

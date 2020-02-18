@@ -53,6 +53,9 @@ class MarainInstanceDeploymentContext {
                 $AuthHeaderValue = "Bearer $AuthToken"
                 $this.GraphHeaders = @{"Authorization" = $AuthHeaderValue; "Content-Type"="application/json"}
             }
+            else {
+                Write-Host "No graph token available. AAD operations will not be performed."
+            }
         }
 
         $this.DeploymentStagingStorageAccountName = ('stage' + $AzureLocation + $this.SubscriptionId).Replace('-', '').substring(0, 24)
@@ -665,7 +668,9 @@ ForEach ($kv in $MarainServices.PSObject.Properties) {
         Write-Host " Release version $ReleaseVersion"
 
         $ReleaseUrl = "https://api.github.com/repos/{0}/releases/tags/{1}" -f $GitHubProject, $ReleaseVersion
+        Write-Host " Downloading from $ReleaseUrl..."
         $ReleaseResponse = Invoke-WebRequest -Uri $ReleaseUrl
+        Write-Host " Download complete"
         $Release = ConvertFrom-Json $ReleaseResponse.Content
         $DeploymentAssets = $Release.assets | Where-Object  { $_.name.EndsWith(".Deployment.zip") }
         foreach ($asset in $DeploymentAssets) {
@@ -703,6 +708,7 @@ ForEach ($kv in $MarainServices.PSObject.Properties) {
                         $ScriptPath = Join-Path $DeploymentPackageDir $scriptName
                     }
                     if (Test-Path $ScriptPath) {
+                        Write-Host " Running $scriptName"
                         . $ScriptPath
                         MarainDeployment $ServiceDeploymentContext
                     }

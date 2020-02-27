@@ -319,6 +319,30 @@ class MarainServiceDeploymentContext {
         [string] $ClientAppSuffix
     )
     {
+        # Since the application currently being configured is trying to use a common service, the
+        # target application details should be available in the instance context (because the
+        # common service in question will have called MakeAppServiceCommonService).
+        [MarainAppService]$TargetAppService = $this.InstanceContext.GetCommonAppService($TargetCommonAppKey)
+        $this.AssignServicePrincipalToAppRole($TargetAppService, $TargetAppRoleId, $ClientAppSuffix)
+    }
+
+    AssignServicePrincipalToInternalServiceAppRole(
+        [string] $TargetAppSuffix,
+        [string] $TargetAppRoleId,
+        [string] $ClientAppSuffix
+    )
+    {
+        $TargetAppNameWithSuffix = $this.AppName + $TargetAppSuffix
+        [MarainAppService]$TargetAppService = $this.AppServices[$TargetAppNameWithSuffix]
+        $this.AssignServicePrincipalToAppRole($TargetAppService, $TargetAppRoleId, $ClientAppSuffix)
+    }
+
+    AssignServicePrincipalToAppRole(
+        [MarainAppService]$TargetAppService,
+        [string] $TargetAppRoleId,
+        [string] $ClientAppSuffix
+    )
+    {
         # This is what we would have done on classic Azure AD.
         # New-AzureADServiceAppRoleAssignment -ObjectId 0bbd7057-009f-414a-b0fa-9b811ea52b24 -PrincipalId 0bbd7057-009f-414a-b0fa-9b811ea52b24 -ResourceId $target.ObjectId -Id 7619c293-764c-437b-9a8e-698a26250efd
         # Aggravatingly, no equivalent is available on PowerShell Core today.
@@ -417,10 +441,6 @@ class MarainServiceDeploymentContext {
             $ClientIdentityServicePrincipalId = $app.Id
         }
 
-        # Since the application currently being configured is trying to use a common service, the
-        # target application details should be available in the instance context (because the
-        # common service in question will have called MakeAppServiceCommonService).
-        [MarainAppService]$TargetAppService = $this.InstanceContext.GetCommonAppService($TargetCommonAppKey)
         $TargetAppId = $TargetAppService.AuthAppId
         # Remember, $TargetAppService.ServicePrincipalId does NOT do what we want here.
         # That's the Target Identity Service Principal, but we want the target's Access Control
@@ -428,7 +448,7 @@ class MarainServiceDeploymentContext {
         $TargetSp = Get-AzADServicePrincipal -ApplicationId $TargetAppId
         $TargetAccessControlServicePrincipalId = $TargetSp.Id
 
-        Write-Host "Assigning role $TargetAppRoleId for common app $TargetCommonAppKey (AppId: $TargetAppId sp: $TargetAccessControlServicePrincipalId) to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+        Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         $RequestBody = "{'appRoleId': '$TargetAppRoleId','principalId': '$ClientIdentityServicePrincipalId','resourceId': '$TargetAccessControlServicePrincipalId'}"
         Write-Host $RequestBody
         az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
@@ -441,6 +461,10 @@ class MarainServiceDeploymentContext {
         [string]$AppServiceName)
     {
         $WebApp = Get-AzWebApp -Name $AppServiceName
+        if (-not $WebApp) {
+            Write-Error "Did not fine web app $AppServiceName"
+            return
+        }
         $ReleaseAssets = $this.GitHubRelease.assets | Where-Object  { $_.name -eq $AssetName }
         if ($ReleaseAssets.Count -ne 1) {
             Write-Error ("Expecting exactly one asset named {0}, found {1}" -f $AssetName, $ReleaseAssets.Count)
@@ -448,6 +472,7 @@ class MarainServiceDeploymentContext {
         $ReleaseAsset = $ReleaseAssets[0]
         $url = $ReleaseAsset.browser_download_url
         $AssetPath = Join-Path $this.TempFolder $AssetName
+        Write-Host "Will deploy file at $url to $AppServiceName"
         Invoke-WebRequest -Uri $url -OutFile $AssetPath
         Publish-AzWebApp `
             -Force `

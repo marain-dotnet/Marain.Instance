@@ -462,7 +462,7 @@ class MarainServiceDeploymentContext {
     {
         $WebApp = Get-AzWebApp -Name $AppServiceName
         if (-not $WebApp) {
-            Write-Error "Did not fine web app $AppServiceName"
+            Write-Error "Did not find web app $AppServiceName"
             return
         }
         $ReleaseAssets = $this.GitHubRelease.assets | Where-Object  { $_.name -eq $AssetName }

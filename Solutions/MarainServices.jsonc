@@ -12,5 +12,9 @@
     "Marain.Operations": {
         "gitHubProject": "marain-dotnet/Marain.Operations",
         "apiPrefix": "operations"
+    },
+    "Marain.Workflow": {
+        "gitHubProject": "marain-dotnet/Marain.Workflow",
+        "apiPrefix": "workflow"
     }
 }

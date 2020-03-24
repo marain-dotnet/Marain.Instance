@@ -18,14 +18,14 @@ We need to define a tenancy model that will support these scenarios and can be i
 
 To support this, we have made the following decisions
 
-1. Every client using a Marain instance will have a top-level (i.e. child of the root tenant) Marain tenant created for them. For the remainder of this document, these will be referred to as "Client Tenants".
-1. Every Marain service will also have a top-level Marain tenant created for it. For the remainder of this document, these will be referred to as "Service Tenants".
-1. Clients will access the Marain services they are licenced for using their own tenant Id.
-1. When a Marain service depends on another one as part of an operation, it will pass a tenant Id that's a subtenant of it's own Service Tenant that is specific to the client. For example, the Workflow service has a dependency on the Operations Control service. If there are two Client Tenants for the Workflow Service, each will have a corresponding sub-tenant of the Workflow Service Tenant and these will be used to make the call to the Operation service. This approach allows the depended-upon service to be used indirectly by the client, but not for direct usage.
+1. Every client using a Marain instance will have a top-level (i.e. child of the root tenant) Marain tenant created for them. For the remainder of this document, these will be referred to as "Client Tenants". Note that there is nothing that mandates these be top-level for this approach to work, but at present we expect that they will be.
+1. Every Marain service will also have a top-level Marain tenant created for it. For the remainder of this document, these will be referred to as "Service Tenants". As with Client Tenants, there is nothing that mandates they be top level.
+1. Clients will access the Marain services they are licenced for using their own tenant Id. Whilst the Marain services themselves expect this to be supplied as part of endpoint paths, there is nothing to prevent an API Gateway (e.g. Azure API Management) being put in front of this so that custom URLs can be mapped to tenants, or so that tenant IDs can be passed in headers.
+1. When a Marain service depends on another one as part of an operation, it will pass the Id of a tenant that is a subtenant of it's own Service Tenant. This subtenant will be specific to the client that is making the original call. For example, the Workflow service has a dependency on the Operations Control service. If there are two Client Tenants for the Workflow Service, each will have a corresponding sub-tenant of the Workflow Service Tenant and these will be used to make the call to the Operation service. This approach allows the depended-upon service to be used indirectly by the client, but not for direct usage.
 
-Each of these tenants - Client, Service, and the client-specific sub-tenants of the Service Tenants - will need to hold configuration appropriate for their expected use case.
+Each of these tenants - Client, Service, and the client-specific sub-tenants of the Service Tenants - will need to hold configuration appropriate for their expected use cases. This will normally be any required storage configuration for the services they use, plus the Ids of any subtenants that have been created for them in those services, but could also include other things.
 
-As an example, suppose we have two customers; Contoso and Litware. For these customers to be able to use Marain, we must create Contoso and Litware tenants. These will generally be children of the root tenant (although they don’t need to be). We also have two Marain services available, Workflow and Operations. These also have tenants that are children of the root tenant (in the following diagrams, Service Tenants are shown in ALL CAPS and Client Tenants in normal sentence case):
+As an example, suppose we have two customers; Contoso and Litware. For these customers to be able to use Marain, we must create Contoso and Litware tenants. We also have two Marain services available, Workflow and Operations. These also have tenants created for them (in the following diagrams, Service Tenants are shown in ALL CAPS and Client Tenants in normal sentence case. Service-specific client subtenants use a mix to indicate what they relate to):
 
 ```
 Root tenant
@@ -41,8 +41,8 @@ Root tenant
 ```
 
 Contoso is licenced to use Workflow, and Litware is licenced to use both Workflow and Operations. This means that:
-- The Contoso tenant will contain storage configuration for the Workflow service (as with all this configuration, the onboarding process will default this to standard Marain storage, where data is siloed by tenant in shared storage accounts - e.g. a single Cosmos database containing a collection per tenant).
-- The Litware tenant will contain storage configuration for both Workflow and Operations services.
+- The Contoso tenant will contain storage configuration for the Workflow service (as with all this configuration, the onboarding process will default this to standard Marain storage, where data is siloed by tenant in shared storage accounts - e.g. a single Cosmos database containing a collection per tenant. However, clients can supply their own storage configuration where required).
+- The Litware tenant will contain storage configuration for both Workflow and Operations services, because it uses both directly.
 
 In addition, because both clients are licenced for workflow, they will each have a sub-tenant of the Workflow Service Tenant, containing the storage configuration that should be used with the Operations service. The Operations service does not have any sub-tenants because it does not have dependencies on any other Marain services:
 
@@ -114,7 +114,7 @@ Root tenant
  +-> FOOBAR
 ```
 
-We then enroll Contoso to use the Workflow service. This causes a chain of enrollments whereby a sub-tenant is created for WORKFLOW+Contoso, which is then enrolled to use the Operations service, creating a sub-tenant of OPERATIONS, OPERATIONS+WORKFLOW+Contoso, which is then enrolled to use the FooBar service (since FooBar does not have dependencies, this does not create any further sub tenants). The Workflow service is also directly dependent on FooBar, so WORKFLOW+Contoso is enrolled to use FooBar resulting in storage configuration for FooBar being added to it.
+We then enroll Contoso to use the Workflow service. This causes a chain of enrollments whereby a sub-tenant is created for WORKFLOW+Contoso, which is then enrolled to use the Operations service, creating a sub-tenant of OPERATIONS, OPERATIONS+WORKFLOW+Contoso, which is then enrolled to use the FooBar service (since FooBar does not have dependencies, this does not create any further sub tenants). The Workflow service is also directly dependent on FooBar, so WORKFLOW+Contoso is also enrolled to use FooBar resulting in storage configuration for FooBar being added to it.
 
 This leaves the tenant hierarchy looking like this:
 

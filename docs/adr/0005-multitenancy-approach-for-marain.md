@@ -6,9 +6,9 @@ Proposed
 
 ## Context
 
-Tenancy has been made a first class citizen of all Marain services, however this by itself is not enough to make the system truly multitenanted. In order to do this, we need to determine how tenants should be created, managed and used within the Marain "world".
+Tenancy has always been a first class citizen of all Marain services, however this by itself is not enough to make the system truly multitenanted. In order to do this, we need to determine how tenants should be created, managed and used within the Marain "world".
 
-We would like the option of deploying Marain as either a managed service, hosted by us and licenced to users as a PaaS offering, or for clients to deploy private instances into their own cloud subscriptions. We also want to give clients of the managed services the option for data to be stored in their own storage accounts or databases, but still have us run the compute aspects of the platform on their behalf.
+We would like the option of deploying Marain as either a managed service, hosted by us and licenced to users as a PaaS offering, or for clients to deploy private instances into their own cloud subscriptions. We also want to give clients of the managed services the option for data to be stored in their own storage accounts or databases, but still have us run the compute aspects of the platform on their behalf. This also extends to those clients who are using Marain to implement their own multi-tenanted services: these clients should also be able to isolate their own clients' storage.
 
 In addition, we need to be able to differentiate between a Marain service being available for a client to use directly and one being used as a dependency of a service they are using. For example, the Workflow service makes use of the Operations service. As a result, clients that are licenced to use the Workflow service will be using the Operations service indirectly, despite the fact that they may not be licenced to use it directly.
 
@@ -18,10 +18,11 @@ We need to define a tenancy model that will support these scenarios and can be i
 
 To support this, we have made the following decisions
 
-1. Every client using a Marain instance will have a top-level (i.e. child of the root tenant) Marain tenant created for them. For the remainder of this document, these will be referred to as "Client Tenants". Note that there is nothing that mandates these be top-level for this approach to work, but at present we expect that they will be.
-1. Every Marain service will also have a top-level Marain tenant created for it. For the remainder of this document, these will be referred to as "Service Tenants". As with Client Tenants, there is nothing that mandates they be top level.
+1. Every client using a Marain instance will have a Marain tenant created for them. For the remainder of this document, these will be referred to as "Client Tenants".
+1. Every Marain service will also have a Marain tenant created for it. For the remainder of this document, these will be referred to as "Service Tenants".
+1. We will make use of the tenant hierarchy to group Client Tenants and Service Tenants under their own top-level parent. This means that we will have a top-level tenant called "Client Tenants" which parents all of the Client Tenants, and an equivalent one called "Service Tenants" that parents the Service Tenants (this is shown in the diagram below).
 1. Clients will access the Marain services they are licenced for using their own tenant Id. Whilst the Marain services themselves expect this to be supplied as part of endpoint paths, there is nothing to prevent an API Gateway (e.g. Azure API Management) being put in front of this so that custom URLs can be mapped to tenants, or so that tenant IDs can be passed in headers.
-1. When a Marain service depends on another one as part of an operation, it will pass the Id of a tenant that is a subtenant of it's own Service Tenant. This subtenant will be specific to the client that is making the original call. For example, the Workflow service has a dependency on the Operations Control service. If there are two Client Tenants for the Workflow Service, each will have a corresponding sub-tenant of the Workflow Service Tenant and these will be used to make the call to the Operation service. This approach allows the depended-upon service to be used indirectly by the client, but not for direct usage.
+1. When a Marain service depends on another one as part of an operation, it will pass the Id of a tenant that is a subtenant of it's own Service Tenant. This subtenant will be specific to the client that is making the original call. For example, the Workflow service has a dependency on the Operations Control service. If there are two Client Tenants for the Workflow Service, each will have a corresponding sub-tenant of the Workflow Service Tenant and these will be used to make the call to the Operation service. This approach allows the depended-upon service to be used on behalf of the client without making it available for direct usage.
 
 Each of these tenants - Client, Service, and the client-specific sub-tenants of the Service Tenants - will need to hold configuration appropriate for their expected use cases. This will normally be any required storage configuration for the services they use, plus the Ids of any subtenants that have been created for them in those services, but could also include other things.
 
@@ -80,26 +81,26 @@ As can be seen from the above, each tenant holds appropriate configuration for t
 
 You will notice from the above that Litware ends up with two sets of configuration for Operations storage; that which is employed when using the Operations service directly, and that used when calling the Workflow service and thus using the Operations service indirectly. This gives clients the maximum flexibility in controlling where their data is stored.
 
-Now let's look at a slightly more complex example. Imagine in the scenario above, there is a third service, which we'll just call the FooBar service, and that both the Workflow and Operations service are dependent on it. In addition, Contoso are licenced to use it directly. This is what the dependency graph now looks like this:
+Now let's look at a slightly more complex example. Imagine in the scenario above, there is a third service, which we'll just call the FooBar service, and that both the Workflow and Operations service are dependent on it. In addition, Contoso are licenced to use it directly. This is what the dependency graph now looks like:
 
 ```
                           +------------+
                           |            |
-                  +-------> Workflow   +------+-----------------+
+                  +-------> WORKFLOW   +------+-----------------+
 +---------+       |       |            |      |                 |
 |         +-------+       +-^----------+      |                 |
 | Contoso |                 |                 |                 |
 |         |                 |                 |                 |
 +----+----+                 |           +-----v------+          |
      |                      |           |            |          |
-     |                      |     +-----> Operations +----+     |
+     |                      |     +-----> OPERATIONS +----+     |
      |      +---------+     |     |     |            |    |     |
      |      |         +-----+     |     +------------+    |     |
      |      | Litware |           |                       |     |
      |      |         +-----------+                       |     |
      |      +---------+                               +---v-----v--+
      |                                                |            |
-     +------------------------------------------------> FooBar     |
+     +------------------------------------------------> FOOBAR     |
                                                       |            |
                                                       +------------+
 ```
@@ -156,7 +157,7 @@ Root tenant
        +-> FOOBAR
 ```
 
-We then enroll Contosa for the FooBar service. Since there are no additional dependencies, this does not result in any further sub-tenants being created, but does add storage configuration for FooBar to the Contoso tenant. As in the first example, Contoso now has two sets of storage configuration for the FooBar service, one for direct use and one for indirect use.
+We then enroll Contoso for the FooBar service. Since there are no additional dependencies, this does not result in any further sub-tenants being created, but does add storage configuration for FooBar to the Contoso tenant. As in the first example, Contoso now has two sets of storage configuration for the FooBar service, one for direct use and one for indirect use.
 
 ```
 Root tenant
@@ -230,7 +231,7 @@ Root tenant
 
 Since Litware is not licenced to use FooBar, the Litware Client Tenant does not hold any configuration for that service itself.
 
-Finally, we enroll Litware to use the Operations service. In this example, because Operations depends on FooBar, we need to create another sub-tenant of Operations to call FooBar with when Litware use Operations directly, and enroll this new subtenant with FooBar. This leaves us with the following:
+Finally, we enroll Litware to use the Operations service. In this example, because Operations depends on FooBar, we need to create another sub-tenant of Operations to call FooBar with when Litware uses Operations directly, and enroll this new subtenant with FooBar. This leaves us with the following:
 
 ```
 Root tenant
@@ -278,7 +279,7 @@ Root tenant
 
 ## Consequences
 
-It is expected that these sub-tenants are created and configured as part of onboarding a new Tenant; as part of this process, the tenant will be enrolled for usage of each Marain service. The means by which this is expected to happen is covered in a separate ADR.
+It is expected that these sub-tenants are created and configured as part of a process of enrolling tenants for specific services they are licenced to use. The means by which this is expected to happen is covered in ADR 0006.
 
 Without appropriate tooling, managing the necessary tenants and their configuration would be complex and error-prone. At a minimum, it will be necessary to script some basic processes to assist in setting this process up. It will also be necessary to ensure that an appropriate level of logging is in place in code that reads this configuration in order to allow setup problems to be quickly diagnosed.
 

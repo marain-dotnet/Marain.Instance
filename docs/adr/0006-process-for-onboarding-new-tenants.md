@@ -36,7 +36,7 @@ Once we have provided a discovery mechanism, we need to define a way in which a 
 The idea being that once the Management API has discovered a service, it can request the information that would be required to enroll a tenant to it. This will be a list of required configuration settings, in a known form that allows them to be easily captured and validated before passing them to the enrollment endpoint.
 
 The enrollment endpoint for a service will do two things:
-- Firstly, it will attach the relevent configuration to the tenant that's being enrolled.
+- Firstly, it will attach the relevant configuration to the tenant that's being enrolled.
 - Secondly, if the service that's being enrolled in has dependencies on other services, it will create a new sub-tenant of its own Service Tenant that will be used to access those dependent services. This new subtenant will then be enrolled for the dependent service.
 
 Whilst we did not wish to tightly couple the Marain services to the Management API, this restriction does not apply for services that depend upon other services. As such if a service does have a dependency, the location of that service (i.e. its URI) will be part of the configuration for that service, making it easy for the enrollment endpoint of a service to create a new tenant and enroll it for the dependent service.
@@ -286,7 +286,7 @@ Root tenant
 
 This completes the enrollment of Litware to the Workflow and Operations services. As can be seen from the above, there are three different paths through which Litware makes indirect use of the FooBar service, and it's possible for the client to use separate storage for each. In fact, this will be the default; even if the client is using Marain storage, the data for their three different usage scenarios for FooBar will be stored in different containers.
 
-However, it's worth pointing out that the client does not get to configure these new sub-tenants directly. In fact, they will be unaware of them - they are essentially implementation details of our approach to multitenancy in Marain. They will not be able to retrieve the sub-tennats from the tenancy service or update them directly. That said, it's likely that the management API will allow the configuration to be changed - but without exposing the fact that these sub-tenants exist.
+However, it's worth pointing out that the client does not get to configure these new sub-tenants directly. In fact, they will be unaware of them - they are essentially implementation details of our approach to multi-tenancy in Marain. They will not be able to retrieve the sub-tenants from the tenancy service or update them directly. That said, it's likely that the management API will allow the configuration to be changed - but without exposing the fact that these sub-tenants exist.
 
 ### Offboarding
 

@@ -45,7 +45,8 @@ Whilst we did not wish to tightly couple the Marain services to the Management A
 
 Consider a scenario when we have two clients and three services:
 
-```Root tenant
+```
+Root tenant
  |
  +-> Client Tenants
  |     |

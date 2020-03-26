@@ -29,15 +29,18 @@ As an example, suppose we have two customers; Contoso and Litware. For these cus
 
 ```
 Root tenant
- +
  |
- +-> Contoso
- |
- +-> Litware
- |
- +-> WORKFLOW
- |
- +-> OPERATIONS
+ +-> Client Tenants
+ |     |
+ |     +-> Contoso
+ |     |
+ |     +-> Litware
+ |      
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |
+       +-> OPERATIONS
 ```
 
 Contoso is licenced to use Workflow, and Litware is licenced to use both Workflow and Operations. This means that:
@@ -48,26 +51,29 @@ In addition, because both clients are licenced for workflow, they will each have
 
 ```
 Root tenant
- +
  |
- +-> Contoso
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |     +-> (Operations storage configuration)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Contoso
- |     |     +-> (Operations storage configuration)
+ |     +-> Contoso
+ |     |     +-> (Workflow storage configuration)
+ |     |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
  |     |
- |     +-> WORKFLOW+Litware
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
  |           +-> (Operations storage configuration)
  |
- +-> OPERATIONS
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Contoso
+       |     |     +-> (Operations storage configuration)
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |
+       +-> OPERATIONS
 ```
 
 As can be seen from the above, each tenant holds appropriate configuration for the services they use directly. In the case of the Client Tenants, they also hold the Id of the sub-tenant that the Workflow service will use when calling out to the Operations service on their behalf; this is necessary to avoid a costly search for the correct sub-tenant to use.
@@ -103,15 +109,19 @@ In order to support this, we start with an additional Service Tenant for the Foo
 ```
 Root tenant
  |
- +-> Contoso
- |
- +-> Litware
- |
- +-> WORKFLOW
- |
- +-> OPERATIONS
- |
- +-> FOOBAR
+ +-> Client Tenants
+ |     |
+ |     +-> Contoso
+ |     |
+ |     +-> Litware
+ |      
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |
+       +-> OPERATIONS
+       |
+       +-> FOOBAR
 ```
 
 We then enroll Contoso to use the Workflow service. This causes a chain of enrollments whereby a sub-tenant is created for WORKFLOW+Contoso, which is then enrolled to use the Operations service, creating a sub-tenant of OPERATIONS, OPERATIONS+WORKFLOW+Contoso, which is then enrolled to use the FooBar service (since FooBar does not have dependencies, this does not create any further sub tenants). The Workflow service is also directly dependent on FooBar, so WORKFLOW+Contoso is also enrolled to use FooBar resulting in storage configuration for FooBar being added to it.
@@ -121,25 +131,29 @@ This leaves the tenant hierarchy looking like this:
 ```
 Root tenant
  |
- +-> Contoso
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
- |
- +-> Litware
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Contoso
- |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
- |           +-> (FooBar storage configuration)
- |
- +-> OPERATIONS
+ |     +-> Contoso
+ |     |     +-> (Workflow storage configuration)
+ |     |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
  |     |
- |     +-> OPERATIONS+WORKFLOW+Contoso
- |           +-> (FooBar storage configuration)
- |
- +-> FOOBAR
+ |     +-> Litware
+ |      
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Contoso
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
+       |           +-> (FooBar storage configuration)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Contoso
+       |           +-> (FooBar storage configuration)
+       |
+       +-> FOOBAR
 ```
 
 We then enroll Contosa for the FooBar service. Since there are no additional dependencies, this does not result in any further sub-tenants being created, but does add storage configuration for FooBar to the Contoso tenant. As in the first example, Contoso now has two sets of storage configuration for the FooBar service, one for direct use and one for indirect use.
@@ -147,26 +161,30 @@ We then enroll Contosa for the FooBar service. Since there are no additional dep
 ```
 Root tenant
  |
- +-> Contoso
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
- |     +-> (FooBar storage configuration)
- |
- +-> Litware
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Contoso
- |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
- |           +-> (FooBar storage configuration)
- |
- +-> OPERATIONS
+ |     +-> Contoso
+ |     |     +-> (Workflow storage configuration)
+ |     |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
+ |     |     +-> (FooBar storage configuration)
  |     |
- |     +-> OPERATIONS+WORKFLOW+Contoso
- |           +-> (FooBar storage configuration)
- |
- +-> FOOBAR
+ |     +-> Litware
+ |      
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Contoso
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
+       |           +-> (FooBar storage configuration)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Contoso
+       |           +-> (FooBar storage configuration)
+       |
+       +-> FOOBAR
 ```
 
 We now repeat the process of enrolling Litware for the Workflow service:
@@ -174,36 +192,40 @@ We now repeat the process of enrolling Litware for the Workflow service:
 ```
 Root tenant
  |
- +-> Contoso
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
- |     +-> (FooBar storage configuration)
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Contoso
- |     |     +-> (Operations storage configuration)
- |     |     +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
+ |     +-> Contoso
+ |     |     +-> (Workflow storage configuration)
+ |     |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
  |     |     +-> (FooBar storage configuration)
  |     |
- |     +-> WORKFLOW+Litware
- |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
- |           +-> (FooBar storage configuration)
- |
- +-> OPERATIONS
- |     |
- |     +-> OPERATIONS+WORKFLOW+Contoso
- |     |     +-> (FooBar storage configuration)
- |     |
- |     +-> OPERATIONS+WORKFLOW+Litware
- |           +-> (FooBar storage configuration)
- |
- +-> FOOBAR
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
+ |      
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Contoso
+       |     |     +-> (Operations storage configuration)
+       |     |     +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
+       |     |     +-> (FooBar storage configuration)
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
+       |           +-> (FooBar storage configuration)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Contoso
+       |     |     +-> (FooBar storage configuration)
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Litware
+       |           +-> (FooBar storage configuration)
+       |
+       +-> FOOBAR
 ```
 
 Since Litware is not licenced to use FooBar, the Litware Client Tenant does not hold any configuration for that service itself.
@@ -213,41 +235,45 @@ Finally, we enroll Litware to use the Operations service. In this example, becau
 ```
 Root tenant
  |
- +-> Contoso
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
- |     +-> (FooBar storage configuration)
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |     +-> (Operations storage configuration)
- |     +-> (The Id of the OPERATIONS+Litware sub-tenant for the Operations service to use)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Contoso
- |     |     +-> (Operations storage configuration)
- |     |     +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
+ |     +-> Contoso
+ |     |     +-> (Workflow storage configuration)
+ |     |     +-> (The Id of the WORKFLOW+Contoso sub-tenant for the Workflow service to use)
  |     |     +-> (FooBar storage configuration)
  |     |
- |     +-> WORKFLOW+Litware
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
  |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
- |           +-> (FooBar storage configuration)
- |
- +-> OPERATIONS
- |     |
- |     +-> OPERATIONS+WORKFLOW+Contoso
- |     |     +-> (FooBar storage configuration)
- |     |
- |     +-> OPERATIONS+WORKFLOW+Litware
- |     |     +-> (FooBar storage configuration)
- |     |
- |     +-> OPERATIONS+Litware
- |           +-> (FooBar storage configuration)
- |
- +-> FOOBAR
+ |           +-> (The Id of the OPERATIONS+Litware sub-tenant for the Operations service to use)
+ |      
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Contoso
+       |     |     +-> (Operations storage configuration)
+       |     |     +-> (The Id of the OPERATIONS+WORKFLOW+Contoso sub-tenant for the Operations service to use)
+       |     |     +-> (FooBar storage configuration)
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
+       |           +-> (FooBar storage configuration)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Contoso
+       |     |     +-> (FooBar storage configuration)
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Litware
+       |     |     +-> (FooBar storage configuration)
+       |     |
+       |     +-> OPERATIONS+Litware
+       |           +-> (FooBar storage configuration)
+       |
+       +-> FOOBAR
 ```
 
 ## Consequences

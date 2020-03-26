@@ -8,7 +8,7 @@ Proposed
 
 We have defined (in ADR 0006) the way in which we intend to implement Tenancy in Marain instances using the `Marain.Tenancy` service. As noted in that ADR, managing the desired model by hand would be excessively error prone and as such, we need to design tooling that will allow us to create and manage new tenants, and to allow them to use the Marain services they are licenced for.
 
-Before we can build that tooling we need to design the underlying process by which tenant onboarding, enrollment and offboarding will work. This needs to allow new Client Tenants to be onboarded into Marain services without tightly coupling the services so some central "thing" that knows everything about them.
+Before we can build that tooling we need to design the underlying process by which tenant onboarding, enrollment and offboarding will work. This needs to allow new Client Tenants to be onboarded into Marain services without tightly coupling the services so some central thing that knows everything about them.
 
 ## Decision
 
@@ -37,15 +37,15 @@ The idea being that once the Management API has discovered a service, it can req
 
 The enrollment endpoint for a service will do two things:
 - Firstly, it will attach the relevent configuration to the tenant that's being enrolled.
-- Secondly, if the service that's being enrolled in has dependencies on other services, it will create a new sub-tenant of it's own Service Tenant that will be used to access those dependent services. This new subtenant will then be enrolled for the dependent service.
+- Secondly, if the service that's being enrolled in has dependencies on other services, it will create a new sub-tenant of its own Service Tenant that will be used to access those dependent services. This new subtenant will then be enrolled for the dependent service.
 
-Whilst we did not wish to tightly couple the Marain services to the Management API, this restriction does not apply for services that depend upon other services. As such if a service does have a dependency, the location of that service (i.e. it's URI) will be part of the configuration for that service, making it easy for the enrollment endpoint of a service to create a new tenant and enroll it for the dependent service.
+Whilst we did not wish to tightly couple the Marain services to the Management API, this restriction does not apply for services that depend upon other services. As such if a service does have a dependency, the location of that service (i.e. its URI) will be part of the configuration for that service, making it easy for the enrollment endpoint of a service to create a new tenant and enroll it for the dependent service.
 
 ### Example
 
 Consider a scenario when we have two clients and three services:
 
-Root tenant
+```Root tenant
  |
  +-> Client Tenants
  |     |
@@ -97,133 +97,155 @@ Let's assume that each of the three services require storage configuration, and 
 
 Firstly, we will request the list of required configuration to enroll a tenant for use with Workflow. Workflow "knows" it needs storage configuration, and because it's dependent on Operations and FooBar, it also requests the required configuration for those services. Operations does the same with FooBar, so the total list of required configuration for Workflow is the sum of those four things: Workflow storage config, Operations storage config, FooBar storage config when invoked from Workflow, and FooBar storage config when invoked from Operations.
 
-Then, we will assemble this information and make the call to the enrollment endpoint for Workflow. The workflow service will attach it's storage configuration to the Litware tenant, and then create a sub-tenant of it's own Service Tenant with which it will call it's dependencies:
+Then, we will assemble this information and make the call to the enrollment endpoint for Workflow. The workflow service will attach its storage configuration to the Litware tenant, and then create a sub-tenant of its own Service Tenant with which it will call its dependencies:
 
 ```
 Root tenant
  |
- +-> Contoso
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Litware
- |
- +-> OPERATIONS
- |
- +-> FOOBAR
+ |     +-> Contoso
+ |     |
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
+ |       
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Litware
+       |
+       +-> OPERATIONS
+       |
+       +-> FOOBAR
 ```
 
 Next, the workflow service needs to enroll the new WORKFLOW+Litware tenant with the Operations and FooBar services.
 
-It calls the enrollment endpoint for Operations, passing through the storage configuration supplied by the call to Workflow enrollment. This results in a similar outcome: the Operations endpoint adds it's configuration to the tenant, then creates a sub-tenant it will use to call it's own dependencies:
+It calls the enrollment endpoint for Operations, passing through the storage configuration supplied by the call to Workflow enrollment. This results in a similar outcome: the Operations endpoint adds its configuration to the tenant, then creates a sub-tenant it will use to call its own dependencies:
 
 ```
 Root tenant
  |
- +-> Contoso
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Litware
- |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
- |
- +-> OPERATIONS
+ |     +-> Contoso
  |     |
- |     +-> OPERATIONS+WORKFLOW+Litware
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
  |
- +-> FOOBAR
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Litware
+       |
+       +-> FOOBAR
 ```
 
-Now, the Operations service calls FooBar's enrollment endpoint to enroll the OPERATIONS+WORKFLOW+Litware tenant, again passing through the configuration it received when the Workflow service invoked it. The FooBar service has no dependencies so does not need to create any further tenants; it simply attaches it's storage configuration to the tenant being enrolled and returns. This also completes the WORKFLOW+Litware tenant's enrollment for Operations.
-
-```
-Root tenant
- |
- +-> Contoso
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |
- +-> WORKFLOW
- |     |
- |     +-> WORKFLOW+Litware
- |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
- |
- +-> OPERATIONS
- |     |
- |     +-> OPERATIONS+WORKFLOW+Litware
- |           +-> (FooBar storage configuration)
- |
- +-> FOOBAR
-```
-
-Next, the Workflow service continues it's enrollment process by enrolling the new WORKFLOW+Litware tenant in it's other dependency, FooBar. As with the Operations service enrolling OPERATIONS+WORKFLOW+Litware with FooBar, this does not result in any further tenants being created, just the FooBar config being attached to WORKFLOW+Litware:
+Now, the Operations service calls FooBar's enrollment endpoint to enroll the OPERATIONS+WORKFLOW+Litware tenant, again passing through the configuration it received when the Workflow service invoked it. The FooBar service has no dependencies so does not need to create any further tenants; it simply attaches its storage configuration to the tenant being enrolled and returns. This also completes the WORKFLOW+Litware tenant's enrollment for Operations.
 
 ```
 Root tenant
  |
- +-> Contoso
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Litware
- |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
- |           +-> (FooBar storage configuration)
- |
- +-> OPERATIONS
+ |     +-> Contoso
  |     |
- |     +-> OPERATIONS+WORKFLOW+Litware
- |           +-> (FooBar storage configuration)
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
  |
- +-> FOOBAR
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Litware
+       |           +-> (FooBar storage configuration)
+       |
+       +-> FOOBAR
 ```
 
-This completes Litware's enrollment for the Workflow service. As can be seen, this has resulted in multiple service-specific Litware tenants being created. However, there is a further step: Litware also needs to be enrolled in the Operations service. At present, it is able to indirectly use the service via Workflow, but also needs to be able to use it directly. So, the process we went through for Workflow is repeated: the management API requests the description of the configuration that must be provided to enroll Litware in the Operations service - which is storage configuration for Operations and FooBar - and then supplies that configuration to the Operations service's enrollment endpoint.
-
-As with Workflow, the first thing that happens is that the Operations service will attach it's storage configuration to the Litware tenant, and then create a sub-tenant of it's own Service Tenant with which it will call it's dependencies:
+Next, the Workflow service continues its enrollment process by enrolling the new WORKFLOW+Litware tenant in its other dependency, FooBar. As with the Operations service enrolling OPERATIONS+WORKFLOW+Litware with FooBar, this does not result in any further tenants being created, just the FooBar config being attached to WORKFLOW+Litware:
 
 ```
 Root tenant
  |
- +-> Contoso
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |     +-> (Operations storage configuration)
- |     +-> (The Id of the OPERATIONS+Litware sub-tenant for the Operations service to use)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Litware
+ |     +-> Contoso
+ |     |
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
+ |
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
+       |           +-> (FooBar storage configuration)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Litware
+       |           +-> (FooBar storage configuration)
+       |
+       +-> FOOBAR
+```
+
+This completes Litware's enrollment for the Workflow service. As can be seen, this has resulted in multiple service-specific Litware tenants being created but Litware is never explicitly made aware of the existence of these tenants, nor is it able to use them directly. They are used by their parent services to make calls to their dependencies _on behalf_ of the Litware tenant.
+
+However, there is a further step: Litware also needs to be enrolled in the Operations service. At present, it is able to indirectly use the service via Workflow, but also needs to be able to use it directly. So, the process we went through for Workflow is repeated: the management API requests the description of the configuration that must be provided to enroll Litware in the Operations service - which is storage configuration for Operations and FooBar - and then supplies that configuration to the Operations service's enrollment endpoint.
+
+As with Workflow, the first thing that happens is that the Operations service will attach its storage configuration to the Litware tenant, and then create a sub-tenant of its own Service Tenant with which it will call its dependencies:
+
+```
+Root tenant
+ |
+ +-> Client Tenants
+ |     |
+ |     +-> Contoso
+ |     |
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
  |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
- |           +-> (FooBar storage configuration)
+ |           +-> (The Id of the OPERATIONS+Litware sub-tenant for the Operations service to use)
  |
- +-> OPERATIONS
- |     |
- |     +-> OPERATIONS+WORKFLOW+Litware
- |     |     +-> (FooBar storage configuration)
- |     |
- |     +-> OPERATIONS+Litware
- |
- +-> FOOBAR
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
+       |           +-> (FooBar storage configuration)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Litware
+       |     |     +-> (FooBar storage configuration)
+       |     |
+       |     +-> OPERATIONS+Litware
+       |
+       +-> FOOBAR
 ```
 
 Then, the Operations service will call out to the FooBar service to enroll the OPERATIONS+Litware service. As with enrolling the OPERATIONS+WORKFLOW+Litware service, this results in FooBar storage configuration being attached to the OPERATIONS+Litware service:
@@ -231,33 +253,39 @@ Then, the Operations service will call out to the FooBar service to enroll the O
 ```
 Root tenant
  |
- +-> Contoso
- |
- +-> Litware
- |     +-> (Workflow storage configuration)
- |     +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
- |     +-> (Operations storage configuration)
- |     +-> (The Id of the OPERATIONS+Litware sub-tenant for the Operations service to use)
- |
- +-> WORKFLOW
+ +-> Client Tenants
  |     |
- |     +-> WORKFLOW+Litware
+ |     +-> Contoso
+ |     |
+ |     +-> Litware
+ |           +-> (Workflow storage configuration)
+ |           +-> (The Id of the WORKFLOW+Litware sub-tenant for the Workflow service to use)
  |           +-> (Operations storage configuration)
- |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
- |           +-> (FooBar storage configuration)
+ |           +-> (The Id of the OPERATIONS+Litware sub-tenant for the Operations service to use)
  |
- +-> OPERATIONS
- |     |
- |     +-> OPERATIONS+WORKFLOW+Litware
- |     |     +-> (FooBar storage configuration)
- |     |
- |     +-> OPERATIONS+Litware
- |           +-> (FooBar storage configuration)
- |
- +-> FOOBAR
+ +-> Service Tenants
+       |
+       +-> WORKFLOW
+       |     |
+       |     +-> WORKFLOW+Litware
+       |           +-> (Operations storage configuration)
+       |           +-> (The Id of the OPERATIONS+WORKFLOW+Litware sub-tenant for the Operations service to use)
+       |           +-> (FooBar storage configuration)
+       |
+       +-> OPERATIONS
+       |     |
+       |     +-> OPERATIONS+WORKFLOW+Litware
+       |     |     +-> (FooBar storage configuration)
+       |     |
+       |     +-> OPERATIONS+Litware
+       |           +-> (FooBar storage configuration)
+       |
+       +-> FOOBAR
 ```
 
-This completes the enrollment of Litware to the Workflow and Operations services. As can be seen from the above, there are three different paths through which Litware make indirect use of the FooBar service, and it's possible for the client to use separate storage for each. In fact, this will be the default; even if the client is using Marain storage, the data for their three different usage scenarios for FooBar will be stored in different containers.
+This completes the enrollment of Litware to the Workflow and Operations services. As can be seen from the above, there are three different paths through which Litware makes indirect use of the FooBar service, and it's possible for the client to use separate storage for each. In fact, this will be the default; even if the client is using Marain storage, the data for their three different usage scenarios for FooBar will be stored in different containers.
+
+However, it's worth pointing out that the client does not get to configure these new sub-tenants directly. In fact, they will be unaware of them - they are essentially implementation details of our approach to multitenancy in Marain. They will not be able to retrieve the sub-tennats from the tenancy service or update them directly. That said, it's likely that the management API will allow the configuration to be changed - but without exposing the fact that these sub-tenants exist.
 
 ### Offboarding
 

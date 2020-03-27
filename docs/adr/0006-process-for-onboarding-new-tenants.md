@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-We have defined (in ADR 0005) the way in which we intend to implement Tenancy in Marain instances using the `Marain.Tenancy` service. As noted in that ADR, managing the desired model by hand would be excessively error prone and as such, we need to design tooling that will allow us to create and manage new tenants, and to allow them to use the Marain services they are licenced for.
+We have defined (in [ADR 0005](0005-multitenancy-approach-for-marain.md)) the way in which we intend to implement Tenancy in Marain instances using the `Marain.Tenancy` service. As noted in that ADR, managing the desired model by hand would be excessively error prone and as such, we need to design tooling that will allow us to create and manage new tenants, and to allow them to use the Marain services they are licenced for.
 
 Before we can build that tooling we need to design the underlying process by which tenant onboarding, enrollment and offboarding will work. This needs to allow new Client Tenants to be onboarded into Marain services without tightly coupling the services so some central thing that knows everything about them.
 
@@ -26,7 +26,7 @@ Service enrollment is a more interesting aspect of the process. In order to avoi
 - A means of discovering the available services.
 - A means of determining the configuration that's needed to enroll for a service, receiving and attaching that configuration to tenants being enrolled, and a defined way of creating the required sub-tenants for services to use when making calls to dependent services on behalf of clients.
 
-As described in ADR 0005, we are envisaging that each service has a Tenant created for it, under a single parent for all Service Tenants. These tenants can then underpin the discovery mechanism that allows the management API to enumerate services that tenants can be enrolled into. Part of the data attached to each tenant will be the URIs at which the endpoints they expose can be found.
+As described in [ADR 0005](0005-multitenancy-approach-for-marain.md), we are envisaging that each service has a Tenant created for it, under a single parent for all Service Tenants. These tenants can then underpin the discovery mechanism that allows the management API to enumerate services that tenants can be enrolled into. Part of the data attached to each tenant will be the URIs at which the endpoints they expose can be found.
 
 Once we have provided a discovery mechanism, we need to define a way in which we can gather the necessary information needed to enroll a tenant to use a service. The simplest way for this to work is to define a common schema through which a service can communicate both the configuration they require as well as the services upon which they depend. Services can then attach a manifest file containing this information to their Service Tenant via a well known property key, allowing the Management API to obtain the manifest as part of the discovery process.
 
@@ -298,4 +298,5 @@ Offboarding needs to be considered further; there are many questions about what 
 
 The obvious consequence of this ADR is that it requires a standard enrollment API to be supplied by each Marain service. It's likely that most of these services would need to provide both control- and data-plane APIs anyway, but this ADR essentially mandates the existence of a control-plane API with a minimum set of endpoints.
 
-Whilst this ADR addresses how tenants are created and configured as part of enrollment, it does not yet cover how they are updated should a new version of a service be deployed that requires different configuration. In this scenario, all tenants that used that service would potentially need to be updated with the new configuration. This may be dealt with by versioning, requiring each tenant to be enrolled for a specific version of each service. This would require us to take a side-by-side approach to versioning in Marain, but would likely make it much more straightforward to deploy updates and move tenants onto new versions. As such, we are deferring further work on this until we have a better answer to the question of versioning.
+Whilst this ADR addresses how tenants are created and configured as part of enrollment, it does not yet cover how they are updated should a new version of a service be deployed that requires different configuration. In this scenario, all tenants that used that service would potentially need to be updated with the new configuration. This may be dealt with by versioning, requiring each tenant to be enrolled for a specific version of each service (with a separate Service Tenant existing for each version of a service). This would require us to take a side-by-side approach to versioning in Marain, but would likely make it much more straightforward to deploy updates and move tenants onto new versions. As such, we are deferring further work on this until we have a better answer to the question of versioning.
+

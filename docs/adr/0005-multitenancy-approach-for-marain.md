@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -279,7 +279,7 @@ Root tenant
 
 ## Consequences
 
-It is expected that these sub-tenants are created and configured as part of a process of enrolling tenants for specific services they are licenced to use. The means by which this is expected to happen is covered in ADR 0006.
+It is expected that these sub-tenants are created and configured as part of a process of enrolling tenants for specific services they are licenced to use. The means by which this is expected to happen is covered in [ADR 0006](0006-process-for-onboarding-new-tenants.md).
 
 Without appropriate tooling, managing the necessary tenants and their configuration would be complex and error-prone. At a minimum, it will be necessary to script some basic processes to assist in setting this process up. It will also be necessary to ensure that an appropriate level of logging is in place in code that reads this configuration in order to allow setup problems to be quickly diagnosed.
 

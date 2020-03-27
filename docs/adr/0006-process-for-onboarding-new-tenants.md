@@ -6,7 +6,7 @@ Proposed
 
 ## Context
 
-We have defined (in ADR 0006) the way in which we intend to implement Tenancy in Marain instances using the `Marain.Tenancy` service. As noted in that ADR, managing the desired model by hand would be excessively error prone and as such, we need to design tooling that will allow us to create and manage new tenants, and to allow them to use the Marain services they are licenced for.
+We have defined (in ADR 0005) the way in which we intend to implement Tenancy in Marain instances using the `Marain.Tenancy` service. As noted in that ADR, managing the desired model by hand would be excessively error prone and as such, we need to design tooling that will allow us to create and manage new tenants, and to allow them to use the Marain services they are licenced for.
 
 Before we can build that tooling we need to design the underlying process by which tenant onboarding, enrollment and offboarding will work. This needs to allow new Client Tenants to be onboarded into Marain services without tightly coupling the services so some central thing that knows everything about them.
 
@@ -24,22 +24,17 @@ Onboarding is a relatively simple part of the process where we create a new Tena
 
 Service enrollment is a more interesting aspect of the process. In order to avoid tightly coupling Marain services to the Management API, we need two things:
 - A means of discovering the available services.
-- A means of requesting that a service enroll a Tenant to use it.
+- A means of determining the configuration that's needed to enroll for a service, receiving and attaching that configuration to tenants being enrolled, and a defined way of creating the required sub-tenants for services to use when making calls to dependent services on behalf of clients.
 
 As described in ADR 0005, we are envisaging that each service has a Tenant created for it, under a single parent for all Service Tenants. These tenants can then underpin the discovery mechanism that allows the management API to enumerate services that tenants can be enrolled into. Part of the data attached to each tenant will be the URIs at which the endpoints they expose can be found.
 
-Once we have provided a discovery mechanism, we need to define a way in which a service can be asked to enroll a tenant. The simplest way for this to work is to require all Marain services to have a control plane API that implements a set of standard endpoints. We can provide a standard OpenAPI document that defines the endpoints needed, which we would currently expect to be:
-- Request the configuration that is needed to enroll a tenant to the service
-- Enroll a tenant to the service
-- Unenroll a tenant from the service
+Once we have provided a discovery mechanism, we need to define a way in which we can gather the necessary information needed to enroll a tenant to use a service. The simplest way for this to work is to define a common schema through which a service can communicate both the configuration they require as well as the services upon which they depend. Services can then attach a manifest file containing this information to their Service Tenant via a well known property key, allowing the Management API to obtain the manifest as part of the discovery process.
 
-The idea being that once the Management API has discovered a service, it can request the information that would be required to enroll a tenant to it. This will be a list of required configuration settings, in a known form that allows them to be easily captured and validated before passing them to the enrollment endpoint.
+Since the process of enrollment and unenrollment is standard across tenants, the actual implementation of this can form part of the Management API, driven by the data in the manifests. If we ever encounter a situation where services need to perform non-standard actions as part of tenant enrollment, we can extend the process to provide support a way in which services can be notified of new enrollments - this could be a simple callback URL, or potentially a broadcast-type system using something like Azure Event Grid. Since we don't yet have any services that would need this, we will not attempt to define that mechanism at this time.
 
-The enrollment endpoint for a service will do two things:
+Enrolling a tenant to use a service does two things:
 - Firstly, it will attach the relevant configuration to the tenant that's being enrolled.
-- Secondly, if the service that's being enrolled in has dependencies on other services, it will create a new sub-tenant of its own Service Tenant that will be used to access those dependent services. This new subtenant will then be enrolled for the dependent service.
-
-Whilst we did not wish to tightly couple the Marain services to the Management API, this restriction does not apply for services that depend upon other services. As such if a service does have a dependency, the location of that service (i.e. its URI) will be part of the configuration for that service, making it easy for the enrollment endpoint of a service to create a new tenant and enroll it for the dependent service.
+- Secondly, if the service that's being enrolled in has dependencies on other services, it will create a new sub-tenant of the Service Tenant for the service being enrolled will be created for the service to use when accessing those services on behalf of the client. This new subtenant will then be enrolled for the dependent service.
 
 ### Example
 
@@ -96,9 +91,9 @@ As can be seen from this diagram:
 
 Let's assume that each of the three services require storage configuration, and have a look at what happens when Litware is enrolled to use Workflow.
 
-Firstly, we will request the list of required configuration to enroll a tenant for use with Workflow. Workflow "knows" it needs storage configuration, and because it's dependent on Operations and FooBar, it also requests the required configuration for those services. Operations does the same with FooBar, so the total list of required configuration for Workflow is the sum of those four things: Workflow storage config, Operations storage config, FooBar storage config when invoked from Workflow, and FooBar storage config when invoked from Operations.
+Firstly, we will use the manifest attached to the Workflow Service Tenant to obtain the list of required configuration to enroll a tenant for use with Workflow. The Workflow manifest states that Workflow requires CosmosDB storage configuration, and also that it is dependent on Operations and FooBar. We can then use the manifests on the Operations and FooBar Service Tenants to determine what configuration is required for them. Operations is dependent on FooBar, so the process is repeated there. From this process, we can determine that the list of required configuration for Workflow is the sum of four things: Workflow storage config, Operations storage config, FooBar storage config when invoked from Workflow, and FooBar storage config when invoked from Operations.
 
-Then, we will assemble this information and make the call to the enrollment endpoint for Workflow. The workflow service will attach its storage configuration to the Litware tenant, and then create a sub-tenant of its own Service Tenant with which it will call its dependencies:
+Then, we will assemble this information (most likely via a Marain "management UI") and begin the process of enrollment. First we enroll the Litware tenant to use workflow by attaching the workflow storage configuration to the Litware tenant. Then, because Workflow has dependencies, we create a sub-tenant of the Workflow Service Tenant that will be used to call these dependencies on behalf of Litware and we attach the ID of the new tenant to the Litware tenant using a well known property name specific to Workflow:
 
 ```
 Root tenant
@@ -122,9 +117,9 @@ Root tenant
        +-> FOOBAR
 ```
 
-Next, the workflow service needs to enroll the new WORKFLOW+Litware tenant with the Operations and FooBar services.
+Next, we need to enroll the new WORKFLOW+Litware tenant with the Operations and FooBar services.
 
-It calls the enrollment endpoint for Operations, passing through the storage configuration supplied by the call to Workflow enrollment. This results in a similar outcome: the Operations endpoint adds its configuration to the tenant, then creates a sub-tenant it will use to call its own dependencies:
+We start with Operations, which repeats the process we have just carried out for Litware and Workflow, resulting in a similar outcome: the WORKFLOW+Litware tenant has configuration attached to it for the Operations service, and the dependency of Operations on FooBar results in a sub tenant being created for Operations to use when calling FooBar on behalf of WORKFLOW+Litware, with the ID of the new tenant being attached to WORKFLOW+Litware using an Operations-specific well-known key:
 
 ```
 Root tenant
@@ -152,7 +147,7 @@ Root tenant
        +-> FOOBAR
 ```
 
-Now, the Operations service calls FooBar's enrollment endpoint to enroll the OPERATIONS+WORKFLOW+Litware tenant, again passing through the configuration it received when the Workflow service invoked it. The FooBar service has no dependencies so does not need to create any further tenants; it simply attaches its storage configuration to the tenant being enrolled and returns. This also completes the WORKFLOW+Litware tenant's enrollment for Operations.
+Next, the new OPERATIONS+WORKFLOW+Litware tenant is enrolled for the FooBar service. The FooBar service has no dependencies so we do not need to create any further tenants; we simply attach the storage configuration for FooBar to the tenant being enrolled and returns. This also completes the WORKFLOW+Litware tenant's enrollment for Operations.
 
 ```
 Root tenant
@@ -181,7 +176,7 @@ Root tenant
        +-> FOOBAR
 ```
 
-Next, the Workflow service continues its enrollment process by enrolling the new WORKFLOW+Litware tenant in its other dependency, FooBar. As with the Operations service enrolling OPERATIONS+WORKFLOW+Litware with FooBar, this does not result in any further tenants being created, just the FooBar config being attached to WORKFLOW+Litware:
+Next, we continue the Workflow enrollment for the Litware tenant by enrolling the new WORKFLOW+Litware tenant for Workflow's other dependency, FooBar. As with the Operations service enrolling OPERATIONS+WORKFLOW+Litware with FooBar, this does not result in any further tenants being created, just the FooBar config being attached to WORKFLOW+Litware:
 
 ```
 Root tenant
@@ -213,9 +208,7 @@ Root tenant
 
 This completes Litware's enrollment for the Workflow service. As can be seen, this has resulted in multiple service-specific Litware tenants being created but Litware is never explicitly made aware of the existence of these tenants, nor is it able to use them directly. They are used by their parent services to make calls to their dependencies _on behalf_ of the Litware tenant.
 
-However, there is a further step: Litware also needs to be enrolled in the Operations service. At present, it is able to indirectly use the service via Workflow, but also needs to be able to use it directly. So, the process we went through for Workflow is repeated: the management API requests the description of the configuration that must be provided to enroll Litware in the Operations service - which is storage configuration for Operations and FooBar - and then supplies that configuration to the Operations service's enrollment endpoint.
-
-As with Workflow, the first thing that happens is that the Operations service will attach its storage configuration to the Litware tenant, and then create a sub-tenant of its own Service Tenant with which it will call its dependencies:
+However, there is a further step: Litware also needs to be enrolled in the Operations service. At present, Workflow is able to use Operations on Litware's behalf using the WORKFLOW+Litware tenant. However, this is an implementation detail of Workflow and something that should be able to change without impacting Litware - as long as it does not result in a change to the public Workflow API. So, in order to allow Litware to use the Operations service directly, the process we went through for Workflow is repeated. The storage configuration for Operations is attached to the Litware tenant, and then a further sub-tenant of Operations will be created for it to use when accessing FooBar on behalf of Litware:
 
 ```
 Root tenant
@@ -249,7 +242,7 @@ Root tenant
        +-> FOOBAR
 ```
 
-Then, the Operations service will call out to the FooBar service to enroll the OPERATIONS+Litware service. As with enrolling the OPERATIONS+WORKFLOW+Litware service, this results in FooBar storage configuration being attached to the OPERATIONS+Litware service:
+Then, the new OPERATIONS+Litware tenant will be enrolled for the FooBar service, which results in FooBar storage configuration being attached to the OPERATIONS+Litware service:
 
 ```
 Root tenant
@@ -287,6 +280,15 @@ Root tenant
 This completes the enrollment of Litware to the Workflow and Operations services. As can be seen from the above, there are three different paths through which Litware makes indirect use of the FooBar service, and it's possible for the client to use separate storage for each. In fact, this will be the default; even if the client is using Marain storage, the data for their three different usage scenarios for FooBar will be stored in different containers.
 
 However, it's worth pointing out that the client does not get to configure these new sub-tenants directly. In fact, they will be unaware of them - they are essentially implementation details of our approach to multi-tenancy in Marain. They will not be able to retrieve the sub-tenants from the tenancy service or update them directly. That said, it's likely that the management API will allow the configuration to be changed - but without exposing the fact that these sub-tenants exist.
+
+### Default configuration
+
+Whilst we want to allow users to "bring their own storage" for the Marain services, this may not be the most likely scenario. There are effectively three main ways in which Marain can be used:
+- Fully hosted, using the default storage for each service (this storage is deployed alongside the service)
+- Hosted, but using client-provided storage (the "bring your own storage" model)
+- Self-hosted (i.e. deployed into a client's own Azure subscription), in which case we would expect the storage deployed with the service to be used - essentially the same as the fully hosted option.
+
+At present, we expect the "bring your own storage" option to be the least likely to be used, so it will be useful to make the configuration for the default storage available to the enrollment process so it can simply be copied to tenants as they are enrolled, rather than requiring it to be explicitly stated for every enrollment. As such, we need the manifest file schema to allow marking configuration as optional, indicating that defaults should be used if that configuration is not provided. The most sensible location to store this default configuration is on the Service Tenant itself.
 
 ### Offboarding
 

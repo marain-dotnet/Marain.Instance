@@ -26,15 +26,15 @@ Service enrollment is a more interesting aspect of the process. In order to avoi
 - A means of discovering the available services.
 - A means of determining the configuration that's needed to enroll for a service, receiving and attaching that configuration to tenants being enrolled, and a defined way of creating the required sub-tenants for services to use when making calls to dependent services on behalf of clients.
 
-As described in [ADR 0005](0005-multitenancy-approach-for-marain.md), we are envisaging that each service has a Tenant created for it, under a single parent for all Service Tenants. These tenants can then underpin the discovery mechanism that allows the management API to enumerate services that tenants can be enrolled into. Part of the data attached to each tenant will be the URIs at which the endpoints they expose can be found.
+As described in [ADR 0005](0005-multitenancy-approach-for-marain.md), we are envisaging that each service has a Tenant created for it, under a single parent for all Service Tenants. These tenants can then underpin the discovery mechanism that allows the management API to enumerate services that tenants can be enrolled into.
 
-Once we have provided a discovery mechanism, we need to define a way in which we can gather the necessary information needed to enroll a tenant to use a service. The simplest way for this to work is to define a common schema through which a service can communicate both the configuration they require as well as the services upon which they depend. Services can then attach a manifest file containing this information to their Service Tenant via a well known property key, allowing the Management API to obtain the manifest as part of the discovery process.
+Once we have provided a discovery mechanism, we need to define a way in which we can gather the necessary information needed to enroll a tenant to use a service. We are intending to make this to work by defining a common schema through which a service can communicate both the configuration it requires as well as the services upon which it depends. Services can then attach a manifest file containing this information to their Service Tenant via a well known property key, allowing the Management API to obtain the manifest as part of the discovery process.
 
 Since the process of enrollment and unenrollment is standard across tenants, the actual implementation of this can form part of the Management API, driven by the data in the manifests. If we ever encounter a situation where services need to perform non-standard actions as part of tenant enrollment, we can extend the process to provide support a way in which services can be notified of new enrollments - this could be a simple callback URL, or potentially a broadcast-type system using something like Azure Event Grid. Since we don't yet have any services that would need this, we will not attempt to define that mechanism at this time.
 
 Enrolling a tenant to use a service does two things:
-- Firstly, it will attach the relevant configuration to the tenant that's being enrolled.
-- Secondly, if the service that's being enrolled in has dependencies on other services, it will create a new sub-tenant of the Service Tenant for the service being enrolled will be created for the service to use when accessing those services on behalf of the client. This new subtenant will then be enrolled for the dependent service.
+- Firstly, it will attach the relevant configuration for the service to the tenant that's being enrolled.
+- Secondly, if the service that's being enrolled in has dependencies on other services, it will create a new sub-tenant of the Service Tenant for the service being enrolled that the service will use when accessing dependencies on behalf of the client. This new subtenant will then be enrolled for each of the depended-upon services.
 
 ### Example
 
@@ -64,30 +64,30 @@ The dependency tree for the services looks like this:
 ```
                           +------------+
                           |            |
-                  +-------> Workflow   +------+-----------------+
+                  +-------> WORKFLOW   +------+-----------------+
 +---------+       |       |            |      |                 |
 |         +-------+       +-^----------+      |                 |
 | Contoso |                 |                 |                 |
 |         |                 |                 |                 |
 +----+----+                 |           +-----v------+          |
      |                      |           |            |          |
-     |                      |     +-----> Operations +----+     |
+     |                      |     +-----> OPERATIONS +----+     |
      |      +---------+     |     |     |            |    |     |
      |      |         +-----+     |     +------------+    |     |
      |      | Litware |           |                       |     |
      |      |         +-----------+                       |     |
      |      +---------+                               +---v-----v--+
      |                                                |            |
-     +------------------------------------------------> FooBar     |
+     +------------------------------------------------> FOOBAR     |
                                                       |            |
                                                       +------------+
 ```
 
 As can be seen from this diagram:
-- Contoso is licenced to use `Workflow` and `FooBar`
-- Litware is licenced to use `Workflow` and `Operations`
-- `Workflow` has dependencies on `Operations` and `FooBar`
-- `Operations` has a dependency on `FooBar`
+- Contoso is licenced to use WORKFLOW and FOOBAR
+- Litware is licenced to use WORKFLOW and OPERATIONS
+- WORKFLOW has dependencies on OPERATIONS and FOOBAR
+- OPERATIONS has a dependency on FOOBAR
 
 Let's assume that each of the three services require storage configuration, and have a look at what happens when Litware is enrolled to use Workflow.
 
@@ -279,7 +279,7 @@ Root tenant
 
 This completes the enrollment of Litware to the Workflow and Operations services. As can be seen from the above, there are three different paths through which Litware makes indirect use of the FooBar service, and it's possible for the client to use separate storage for each. In fact, this will be the default; even if the client is using Marain storage, the data for their three different usage scenarios for FooBar will be stored in different containers.
 
-However, it's worth pointing out that the client does not get to configure these new sub-tenants directly. In fact, they will be unaware of them - they are essentially implementation details of our approach to multi-tenancy in Marain. They will not be able to retrieve the sub-tenants from the tenancy service or update them directly. That said, it's likely that the management API will allow the configuration to be changed - but without exposing the fact that these sub-tenants exist.
+It should be noted that the client does not get to configure these new sub-tenants directly. In fact, they will be unaware of them - they are essentially implementation details of our approach to multi-tenancy in Marain. They will not be able to retrieve the sub-tenants from the tenancy service or update them directly. That said, it's likely that the management API will allow the configuration to be changed - but without exposing the fact that these sub-tenants exist.
 
 ### Default configuration
 
@@ -295,8 +295,6 @@ At present, we expect the "bring your own storage" option to be the least likely
 Offboarding needs to be considered further; there are many questions about what happens to client data if they stop using Marain, and these will likely depend on the licencing agreements we put in place. As a result this will be considered at a later date.
 
 ## Consequences
-
-The obvious consequence of this ADR is that it requires a standard enrollment API to be supplied by each Marain service. It's likely that most of these services would need to provide both control- and data-plane APIs anyway, but this ADR essentially mandates the existence of a control-plane API with a minimum set of endpoints.
 
 Whilst this ADR addresses how tenants are created and configured as part of enrollment, it does not yet cover how they are updated should a new version of a service be deployed that requires different configuration. In this scenario, all tenants that used that service would potentially need to be updated with the new configuration. This may be dealt with by versioning, requiring each tenant to be enrolled for a specific version of each service (with a separate Service Tenant existing for each version of a service). This would require us to take a side-by-side approach to versioning in Marain, but would likely make it much more straightforward to deploy updates and move tenants onto new versions. As such, we are deferring further work on this until we have a better answer to the question of versioning.
 

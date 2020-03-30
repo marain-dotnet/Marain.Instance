@@ -14,7 +14,7 @@ Before we can build that tooling we need to design the underlying process by whi
 
 We are envisaging a central control-plane API (referred to for the remainder of this document as the "Management API") for Marain which primarily builds on top of the Tenancy service. This will provide the standard operations such as creating new tenants and enrolling them to use Marain services.
 
-It will also need to allow us to manage licencing, but we anticipate that this will be via an as-yet nonexistent API, as it will be a central service much like tenancy, used by all other services (either directly or via something like APIM).
+It will also need to allow us to manage concerns such as licencing, billing, metering and so on, but these are out of the scope of this ADR and will be covered by additional ADRs, work items and documentation when required.
 
 ### Onboarding
 

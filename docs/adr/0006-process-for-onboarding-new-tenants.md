@@ -14,11 +14,11 @@ Before we can build that tooling we need to design the underlying process by whi
 
 We are envisaging a central control-plane API (referred to for the remainder of this document as the "Management API") for Marain which primarily builds on top of the Tenancy service. This will provide the standard operations such as creating new tenants and enrolling them to use Marain services.
 
-It will also need to allow us to manage concerns such as licencing, billing, metering and so on, but these are out of the scope of this ADR and will be covered by additional ADRs, work items and documentation when required.
+It will also need to allow us to manage concerns such as licensing, billing, metering and so on, but these are out of the scope of this ADR and will be covered by additional ADRs, work items and documentation when required.
 
 ### Onboarding
 
-Onboarding is a relatively simple part of the process where we create a new Tenant for the client. We will need to determine how we intend licencing to work and what part, if any, the Management API plays..
+Onboarding is a relatively simple part of the process where we create a new Tenant for the client. We will need to determine how we intend licensing to work and what part, if any, the Management API plays.
 
 ### Enrollment
 
@@ -28,7 +28,7 @@ Service enrollment is a more interesting aspect of the process. In order to avoi
 
 As described in [ADR 0005](0005-multitenancy-approach-for-marain.md), we are envisaging that each service has a Tenant created for it, under a single parent for all Service Tenants. These tenants can then underpin the discovery mechanism that allows the management API to enumerate services that tenants can be enrolled into.
 
-Once we have provided a discovery mechanism, we need to define a way in which we can gather the necessary information needed to enroll a tenant to use a service. We are intending to make this to work by defining a common schema through which a service can communicate both the configuration it requires as well as the services upon which it depends. Services can then attach a manifest file containing this information to their Service Tenant via a well known property key, allowing the Management API to obtain the manifest as part of the discovery process.
+Once we have provided a discovery mechanism, we need to define a way in which we can gather the necessary information needed to enroll a tenant to use a service. We are intending to make this work by defining a common schema through which a service can communicate both the configuration it requires as well as the services upon which it depends. Services can then attach a manifest file containing this information to their Service Tenant via a well known property key, allowing the Management API to obtain the manifest as part of the discovery process.
 
 Since the process of enrollment and unenrollment is standard across tenants, the actual implementation of this can form part of the Management API, driven by the data in the manifests. If we ever encounter a situation where services need to perform non-standard actions as part of tenant enrollment, we can extend the process to support a way in which services can be notified of new enrollments - this could be a simple callback URL, or potentially a broadcast-type system using something like Azure Event Grid. Since we don't yet have any services that would need this, we will not attempt to define that mechanism at this time.
 
@@ -283,16 +283,17 @@ It should be noted that the client does not get to configure these new sub-tenan
 
 ### Default configuration
 
-Whilst we want to allow users to "bring their own storage" for the Marain services, this may not be the most likely scenario. There are effectively three main ways in which Marain can be used:
+Whilst we want to allow users to "bring their own storage" for the Marain services, this may not be the most likely scenario. There are effectively four main ways in which Marain can be used:
 - Fully hosted, using the default storage for each service (this storage is deployed alongside the service)
+- Fully hosted, using managed but non-standard storage (we deploy separate storage accounts per client)
 - Hosted, but using client-provided storage (the "bring your own storage" model)
 - Self-hosted (i.e. deployed into a client's own Azure subscription), in which case we would expect the storage deployed with the service to be used - essentially the same as the fully hosted option.
 
-At present, we expect the "bring your own storage" option to be the least likely to be used, so it will be useful to make the configuration for the default storage available to the enrollment process so it can simply be copied to tenants as they are enrolled, rather than requiring it to be explicitly stated for every enrollment. As such, we need the manifest file schema to allow marking configuration as optional, indicating that defaults should be used if that configuration is not provided. The most sensible location to store this default configuration is on the Service Tenant itself.
+In order to make the first and last options simpler to use, we will make the configuration for the default storage available to the enrollment process so it can simply be copied to tenants as they are enrolled, rather than requiring it to be explicitly stated for every enrollment. As such, we need the manifest file schema to allow marking configuration as optional, indicating that defaults should be used if that configuration is not provided. The most sensible location to store this default configuration is on the Service Tenant itself.
 
 ### Offboarding
 
-Offboarding needs to be considered further; there are many questions about what happens to client data if they stop using Marain, and these will likely depend on the licencing agreements we put in place. As a result this will be considered at a later date.
+Offboarding needs to be considered further; there are many questions about what happens to client data if they stop using Marain, and these will likely depend on the licensing agreements we put in place. As a result this will be considered at a later date.
 
 ## Consequences
 

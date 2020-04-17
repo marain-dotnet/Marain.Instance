@@ -4,7 +4,7 @@
 Param(
     [string] [Parameter(Mandatory=$true)] $AzureLocation,
     [string] [Parameter(Mandatory=$true)] $EnvironmentSuffix,
-    [string] [Parameter(Mandatory=$true)] $InstanceManifestPath,
+    # [string] [Parameter(Mandatory=$true)] $InstanceManifestPath,
     [string] [Parameter(Mandatory=$true)] $AadTenantId,
     [string] [Parameter(Mandatory=$true)] $SubscriptionId,
     [Hashtable] $AadAppIds = @{},
@@ -456,29 +456,29 @@ class MarainServiceDeploymentContext {
     }
 
 
-    UploadReleaseAssetAsAppServiceSitePackage(
-        [string]$AssetName,
-        [string]$AppServiceName)
-    {
-        $WebApp = Get-AzWebApp -Name $AppServiceName
-        if (-not $WebApp) {
-            Write-Error "Did not find web app $AppServiceName"
-            return
-        }
-        $ReleaseAssets = $this.GitHubRelease.assets | Where-Object  { $_.name -eq $AssetName }
-        if ($ReleaseAssets.Count -ne 1) {
-            Write-Error ("Expecting exactly one asset named {0}, found {1}" -f $AssetName, $ReleaseAssets.Count)
-        }
-        $ReleaseAsset = $ReleaseAssets[0]
-        $url = $ReleaseAsset.browser_download_url
-        $AssetPath = Join-Path $this.TempFolder $AssetName
-        Write-Host "Will deploy file at $url to $AppServiceName"
-        Invoke-WebRequest -Uri $url -OutFile $AssetPath
-        Publish-AzWebApp `
-            -Force `
-            -ArchivePath $AssetPath `
-            -WebApp $WebApp
-    }
+    # UploadReleaseAssetAsAppServiceSitePackage(
+    #     [string]$AssetName,
+    #     [string]$AppServiceName)
+    # {
+    #     $WebApp = Get-AzWebApp -Name $AppServiceName
+    #     if (-not $WebApp) {
+    #         Write-Error "Did not find web app $AppServiceName"
+    #         return
+    #     }
+    #     $ReleaseAssets = $this.GitHubRelease.assets | Where-Object  { $_.name -eq $AssetName }
+    #     if ($ReleaseAssets.Count -ne 1) {
+    #         Write-Error ("Expecting exactly one asset named {0}, found {1}" -f $AssetName, $ReleaseAssets.Count)
+    #     }
+    #     $ReleaseAsset = $ReleaseAssets[0]
+    #     $url = $ReleaseAsset.browser_download_url
+    #     $AssetPath = Join-Path $this.TempFolder $AssetName
+    #     Write-Host "Will deploy file at $url to $AppServiceName"
+    #     Invoke-WebRequest -Uri $url -OutFile $AssetPath
+    #     Publish-AzWebApp `
+    #         -Force `
+    #         -ArchivePath $AssetPath `
+    #         -WebApp $WebApp
+    # }
 }
 
 class ResourceAccessDescriptor {
@@ -631,27 +631,34 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
     }
 }
 
-function ParseJsonC([string] $path) {
-    # As of PowerShell 6, ConvertFrom-Json handles comments in JSON out of the box, so this is now
-    # just a helper for loading JSON or JSONC from a path.
-    return (Get-Content $path -raw) | ConvertFrom-Json
-}
+# function ParseJsonC([string] $path) {
+#     # As of PowerShell 6, ConvertFrom-Json handles comments in JSON out of the box, so this is now
+#     # just a helper for loading JSON or JSONC from a path.
+#     return (Get-Content $path -raw) | ConvertFrom-Json
+# }
 
-$MarainServicesPath = Join-Path -Resolve $PSScriptRoot "../MarainServices.jsonc"
-$MarainServices = ParseJsonC $MarainServicesPath
+# $MarainServicesPath = Join-Path -Resolve $PSScriptRoot "../MarainServices.jsonc"
+# $MarainServices = ParseJsonC $MarainServicesPath
 
 # Looks like PowerShell doesn't have a direct equivalent to .NET's ability to combine two paths
 # in a way that just ignores the first path if the second is absolute
-$InstanceManifestPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $InstanceManifestPath))
-$InstanceManifest = ParseJsonC $InstanceManifestPath
+# $InstanceManifestPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $InstanceManifestPath))
+# $InstanceManifest = ParseJsonC $InstanceManifestPath
 
 # Check we've got an entry for each known service.
-ForEach ($kv in $MarainServices.PSObject.Properties) {
-    $MarainServiceName = $kv.Name
-    if (-not (Get-Member -InputObject $InstanceManifest.services -name $MarainServiceName)) {
-        Write-Error "Instance manifest does not contain an entry for $MarainServiceName. (Define an entry setting \"omit\":true if you don't want to deploy this service)"
-    }
+# ForEach ($kv in $MarainServices.PSObject.Properties) {
+#     $MarainServiceName = $kv.Name
+#     if (-not (Get-Member -InputObject $InstanceManifest.services -name $MarainServiceName)) {
+#         Write-Error "Instance manifest does not contain an entry for $MarainServiceName. (Define an entry setting \"omit\":true if you don't want to deploy this service)"
+#     }
+# }
+if (!$MarainServices -or $MarainServices.Keys.Count -eq 0) {
+    Write-Error 'Missing Marain Services configuration'
 }
+$MarainServices.Keys | Where-Object {
+    $_ -and $InstanceManifest.services.Keys -inotcontains $_ } | ForEach-Object {
+            Write-Error "Instance manifest does not contain an entry for $_. (Define an entry setting `"omit`":true if you don't want to deploy this service)"
+    }
 
 $InstanceDeploymentContext = [MarainInstanceDeploymentContext]::new(
     $AzureLocation,
@@ -668,7 +675,10 @@ if (-not $AadOnly -and (-not $SkipInstanceDeploy)) {
     if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq 'Marain.Instance')) {
         Write-Host "Deploying shared Marain infrastructure"
 
-        $DeploymentResult = $InstanceDeploymentContext.DeployArmTemplate($PSScriptRoot, "azuredeploy.json", @{}, $InstanceResourceGroupName)
+        $DeploymentResult = DeployArmTemplate -ArtifactsFolderPath $PSScriptRoot `
+                                              -TemplateFileName 'azuredeploy.json' `
+                                              -TemplateParameters @{} `
+                                              -ResourceGroupName $InstanceResourceGroupName
 
         $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey = $DeploymentResult.Outputs.instrumentationKey.Value
         Write-Host "Shared Marain infrastructure deployment complete"

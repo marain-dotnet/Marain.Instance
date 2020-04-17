@@ -3,7 +3,7 @@
 # NOTE:
 #  1) Ignore any Pester test fixtures
 #
-$functions = Get-ChildItem -Recurse $PSScriptRoot -Include *.ps1 | `
+$functions = Get-ChildItem -Recurse $PSScriptRoot/functions -Include *.ps1 | `
                 Where-Object { $_ -notmatch ".Tests.ps1" }
 
 # dot source the individual scripts that make-up this module

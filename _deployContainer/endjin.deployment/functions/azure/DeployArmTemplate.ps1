@@ -6,11 +6,12 @@ function DeployArmTemplate
         [string]$ArtifactsFolderPath,
         [string]$TemplateFileName,
         [Hashtable]$TemplateParameters,
-        [string]$ResourceGroupName
+        [Hashtable]$DeploymentContext
     )
 
     $ArmTemplatePath = Join-Path $ArtifactsFolderPath $TemplateFileName -Resolve
-    $OptionalParameters = @{marainPrefix=$this.Prefix;environmentSuffix=$this.EnvironmentSuffix}
+    $OptionalParameters = @{marainPrefix=$DeploymentContext.Prefix;environmentSuffix=$DeploymentContext.EnvironmentSuffix}
+    $ResourceGroupName = $DeploymentContext.DefaultResourceGroupName
 
     $ArtifactsLocationName = '_artifactsLocation'
     $ArtifactsLocationSasTokenName = '_artifactsLocationSasToken'
@@ -18,12 +19,15 @@ function DeployArmTemplate
     $StorageResourceGroupName = 'ARM_Deploy_Staging'
     $StorageContainerName = $ResourceGroupName.ToLowerInvariant().Replace(".", "") + '-stageartifacts'
 
-    $StorageAccount = Get-AzStorageAccount -ResourceGroupName $StorageResourceGroupName -Name $this.DeploymentStagingStorageAccountName -ErrorAction SilentlyContinue
+    $StorageAccount = Get-AzStorageAccount -ResourceGroupName $StorageResourceGroupName -Name $DeploymentContext.DeploymentStagingStorageAccountName -ErrorAction SilentlyContinue
 
     # Create the storage account if it doesn't already exist
     if ($null -eq $StorageAccount) {
-        New-AzResourceGroup -Location $this.AzureLocation -Name $StorageResourceGroupName -Force
-        $StorageAccount = New-AzStorageAccount -StorageAccountName $this.DeploymentStagingStorageAccountName  -Type 'Standard_LRS' -ResourceGroupName $StorageResourceGroupName -Location $this.AzureLocation
+        New-AzResourceGroup -Location $DeploymentContext.AzureLocation -Name $StorageResourceGroupName -Force
+        $StorageAccount = New-AzStorageAccount -StorageAccountName $DeploymentContext.DeploymentStagingStorageAccountName `
+                                               -Type 'Standard_LRS' `
+                                               -ResourceGroupName $StorageResourceGroupName `
+                                               -Location $DeploymentContext.AzureLocation
     }
 
     # Copy files from the local storage staging location to the storage account container
@@ -36,7 +40,7 @@ function DeployArmTemplate
             -Blob $SourcePath.Substring($ArtifactsFolderPath.length + 1) `
             -Container $StorageContainerName `
             -Context $StorageAccount.Context `
-            -Force
+            -Force | Out-Null
     }
 
     $OptionalParameters[$ArtifactsLocationName] = $StorageAccount.Context.BlobEndPoint + $StorageContainerName
@@ -49,8 +53,8 @@ function DeployArmTemplate
     $OptionalParameters[$ArtifactsLocationSasTokenName] = ConvertTo-SecureString -AsPlainText -Force $StagingSasToken
 
     # Create the resource group only when it doesn't already exist
-    if ((Get-AzResourceGroup -Name $ResourceGroupName -Location $this.AzureLocation -Verbose -ErrorAction SilentlyContinue) -eq $null) {
-        New-AzResourceGroup -Name $ResourceGroupName -Location $this.AzureLocation -Verbose -Force -ErrorAction Stop
+    if ((Get-AzResourceGroup -Name $ResourceGroupName -Location $DeploymentContext.AzureLocation -Verbose -ErrorAction SilentlyContinue) -eq $null) {
+        New-AzResourceGroup -Name $ResourceGroupName -Location $DeploymentContext.AzureLocation -Verbose -Force -ErrorAction Stop
     }
 
     $DeploymentResult = New-AzResourceGroupDeployment `

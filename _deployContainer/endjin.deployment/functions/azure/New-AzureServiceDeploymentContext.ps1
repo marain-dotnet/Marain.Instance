@@ -19,6 +19,8 @@ function New-AzureServiceDeploymentContext
 
         AppNameRoot = $ServiceShortName.ToLower()
         AppName = $DeploymentContext.Prefix + $DeploymentContext.EnvironmentSuffix + $this.AppNameRoot
+        AppServices = $internalContext.AppServices
+        AdApps = $internalContext.AdApps
     }
 
     return $context

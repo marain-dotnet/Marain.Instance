@@ -164,79 +164,79 @@ class MarainServiceDeploymentContext {
     [Hashtable]$AppServices = @{}
     [Hashtable]$AdApps = @{}
 
-    [AzureAdApp]FindOrCreateAzureAdApp(
-        [string]$DisplayName,
-        [string]$appUri,
-        [string[]]$replyUrls)
-    {
-        Write-Host "`nEnsuring Azure AD application {$DisplayName} exists" -ForegroundColor Green
+    # [AzureAdApp]FindOrCreateAzureAdApp(
+    #     [string]$DisplayName,
+    #     [string]$appUri,
+    #     [string[]]$replyUrls)
+    # {
+    #     Write-Host "`nEnsuring Azure AD application {$DisplayName} exists" -ForegroundColor Green
 
-        $app = Get-AzADApplication -DisplayNameStartWith $DisplayName | Where-Object {$_.DisplayName -eq $DisplayName}
-        if ($app) {
-            Write-Host "Found existing app with id $($app.ApplicationId)"
-            $ReplyUrlsOk = $true
-            ForEach ($ReplyUrl in $replyUrls) {
-                if (-not $app.ReplyUrls.Contains($ReplyUrl)) {
-                    $ReplyUrlsOk = $false
-                    Write-Host "Reply URL $ReplyUrl not present in app"
-                }
-            }
+    #     $app = Get-AzADApplication -DisplayNameStartWith $DisplayName | Where-Object {$_.DisplayName -eq $DisplayName}
+    #     if ($app) {
+    #         Write-Host "Found existing app with id $($app.ApplicationId)"
+    #         $ReplyUrlsOk = $true
+    #         ForEach ($ReplyUrl in $replyUrls) {
+    #             if (-not $app.ReplyUrls.Contains($ReplyUrl)) {
+    #                 $ReplyUrlsOk = $false
+    #                 Write-Host "Reply URL $ReplyUrl not present in app"
+    #             }
+    #         }
     
-            if (-not $ReplyUrlsOk) {
-                Write-Host "Setting reply URLs: $replyUrls"
-                $app = Update-AzADApplication -ObjectId $app.ObjectId -ReplyUrl $replyUrls
-            }
-        } else {
-            $app = New-AzADApplication -DisplayName $DisplayName -IdentifierUris $appUri -HomePage $appUri -ReplyUrls $replyUrls
-            Write-Host "Created new app with id $($app.ApplicationId)"
-        }
+    #         if (-not $ReplyUrlsOk) {
+    #             Write-Host "Setting reply URLs: $replyUrls"
+    #             $app = Update-AzADApplication -ObjectId $app.ObjectId -ReplyUrl $replyUrls
+    #         }
+    #     } else {
+    #         $app = New-AzADApplication -DisplayName $DisplayName -IdentifierUris $appUri -HomePage $appUri -ReplyUrls $replyUrls
+    #         Write-Host "Created new app with id $($app.ApplicationId)"
+    #     }
 
-        return [AzureAdAppWithGraphAccess]::new($this, $app.ApplicationId, $app.ObjectId)
-    }
+    #     return [AzureAdAppWithGraphAccess]::new($this, $app.ApplicationId, $app.ObjectId)
+    # }
 
     [AzureAdApp]DefineAzureAdAppForAppService()
     {
         return $this.DefineAzureAdAppForAppService("")
     }
 
-    [AzureAdApp]DefineAzureAdAppForAppService([string] $AppNameSuffix)
-    {
-        $AppNameWithSuffix = $this.AppName + $AppNameSuffix
+    # [AzureAdApp]DefineAzureAdAppForAppService([string] $AppNameSuffix)
+    # {
+    #     $AppNameWithSuffix = $this.AppName + $AppNameSuffix
 
-        if (-not $this.InstanceContext.GraphHeaders) {
-            $AppId = $this.InstanceContext.AadAppIds[$AppNameWithSuffix]
-            if (-not $AppId) {
-                Write-Error "AppId for $AppNameWithSuffix was not supplied in AadAppIds argument, and access to the Azure AD graph is not available (which it will not be when running on a build agent). Either run this in a context where graph access is available, or pass this app id in as an argument." 
-            }
-            $adApp = [AzureAdApp]::new($this, $AppId)
-            $this.AdApps[$AppNameWithSuffix] = $adApp
-            Write-Host ("AppId for {0} ({1}) is {2}" -f $AppNameWithSuffix, $AppNameWithSuffix, $AppId)
-            return $adApp
-        }
+    #     if (-not $this.InstanceContext.GraphHeaders) {
+    #         $AppId = $this.InstanceContext.AadAppIds[$AppNameWithSuffix]
+    #         if (-not $AppId) {
+    #             Write-Error "AppId for $AppNameWithSuffix was not supplied in AadAppIds argument, and access to the Azure AD graph is not available (which it will not be when running on a build agent). Either run this in a context where graph access is available, or pass this app id in as an argument." 
+    #         }
+    #         $adApp = [AzureAdApp]::new($this, $AppId)
+    #         $this.AdApps[$AppNameWithSuffix] = $adApp
+    #         Write-Host ("AppId for {0} ({1}) is {2}" -f $AppNameWithSuffix, $AppNameWithSuffix, $AppId)
+    #         return $adApp
+    #     }
 
-        $EasyAuthCallbackTail = ".auth/login/aad/callback"
+    #     $EasyAuthCallbackTail = ".auth/login/aad/callback"
 
-        $AppUri = "https://" + $AppNameWithSuffix + ".azurewebsites.net/"
+    #     $AppUri = "https://" + $AppNameWithSuffix + ".azurewebsites.net/"
 
-        # When we add APIM support, this would need to use the public-facing service root, assuming
-        # we still actually want callback URI support.
-        $ReplyUrls = @(($AppUri + $EasyAuthCallbackTail))
-        $app = $this.FindOrCreateAzureAdApp($AppNameWithSuffix, $AppUri, $ReplyUrls)
-        Write-Host ("AppId for {0} ({1}) is {2}" -f $AppNameWithSuffix, $AppNameWithSuffix, $app.AppId)
-        $this.AdApps[$AppNameWithSuffix] = $app
+    #     # When we add APIM support, this would need to use the public-facing service root, assuming
+    #     # we still actually want callback URI support.
+    #     $ReplyUrls = @(($AppUri + $EasyAuthCallbackTail))
+    #     $app = $this.FindOrCreateAzureAdApp($AppNameWithSuffix, $AppUri, $ReplyUrls)
+    #     Write-Host ("AppId for {0} ({1}) is {2}" -f $AppNameWithSuffix, $AppNameWithSuffix, $app.AppId)
+    #     $this.AdApps[$AppNameWithSuffix] = $app
 
-        $Principal = Get-AzAdServicePrincipal -ApplicationId $app.AppId
-        if (-not $Principal)
-        {
-            New-AzAdServicePrincipal -ApplicationId $app.AppId -DisplayName $AppNameWithSuffix
-        }
+    #     $Principal = Get-AzAdServicePrincipal -ApplicationId $app.AppId
+    #     if (-not $Principal)
+    #     {
+    #         New-AzAdServicePrincipal -ApplicationId $app.AppId -DisplayName $AppNameWithSuffix
+    #     }
 
-        $GraphApiAppId = "00000002-0000-0000-c000-000000000000"
-        $SignInAndReadProfileScopeId = "311a71cc-e848-46a1-bdf8-97ff7156d8e6"
-        $app.EnsureRequiredResourceAccessContains($GraphApiAppId, @([ResourceAccessDescriptor]::new($SignInAndReadProfileScopeId, "Scope")))
+    #     $GraphApiAppId = "00000002-0000-0000-c000-000000000000"
+    #     $SignInAndReadProfileScopeId = "311a71cc-e848-46a1-bdf8-97ff7156d8e6"
+    #     $app.EnsureRequiredResourceAccessContains($GraphApiAppId, @([ResourceAccessDescriptor]::new($SignInAndReadProfileScopeId, "Scope")))
 
-        return $app
-    }
+    #     return $app
+    # }
 
     [string]GetAppId()
     {
@@ -264,33 +264,33 @@ class MarainServiceDeploymentContext {
         $this.InstanceContext.InstanceApps[$AppKey] = $this.AppServices[$AppNameWithSuffix]
     }
 
-    SetAppServiceDetails([string]$ServicePrincipalId)
-    {
-        $this.SetAppServiceDetails($ServicePrincipalId, "", $null)
-    }
+    # SetAppServiceDetails([string]$ServicePrincipalId)
+    # {
+    #     $this.SetAppServiceDetails($ServicePrincipalId, "", $null)
+    # }
 
-    SetAppServiceDetails(
-        [string]$ServicePrincipalId,
-        [string]$ClientAppSuffix,
-        [string]$BaseUrl
-        )
-    {
-        $AppNameWithSuffix = $this.AppName + $ClientAppSuffix
-        [AzureAdApp]$AdApp = $this.AdApps[$AppNameWithSuffix]
-        $AppId = $null
-        # We won't always have an AzureAdApp - if a service is open by design
-        # (e.g. the Marain.Operations status service), there will be no app.
-        if ($AdApp)
-        {
-            $AppId = $AdApp.AppId
-        }
-        if (-not $BaseUrl)
-        {
-            $BaseUrl = "https://$AppNameWithSuffix.azurewebsites.net/"
-        }
-        $Service = [MarainAppService]::new($AppId, $ServicePrincipalId, $BaseUrl)
-        $this.AppServices[$AppNameWithSuffix] = $Service
-    }
+    # SetAppServiceDetails(
+    #     [string]$ServicePrincipalId,
+    #     [string]$ClientAppSuffix,
+    #     [string]$BaseUrl
+    #     )
+    # {
+    #     $AppNameWithSuffix = $this.AppName + $ClientAppSuffix
+    #     [AzureAdApp]$AdApp = $this.AdApps[$AppNameWithSuffix]
+    #     $AppId = $null
+    #     # We won't always have an AzureAdApp - if a service is open by design
+    #     # (e.g. the Marain.Operations status service), there will be no app.
+    #     if ($AdApp)
+    #     {
+    #         $AppId = $AdApp.AppId
+    #     }
+    #     if (-not $BaseUrl)
+    #     {
+    #         $BaseUrl = "https://$AppNameWithSuffix.azurewebsites.net/"
+    #     }
+    #     $Service = [MarainAppService]::new($AppId, $ServicePrincipalId, $BaseUrl)
+    #     $this.AppServices[$AppNameWithSuffix] = $Service
+    # }
 
     AssignServicePrincipalToCommonServiceAppRole(
         [string] $TargetCommonAppKey,
@@ -552,35 +552,35 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
         }
     }
 
-    EnsureAppRolesContain(
-        [string] $AppRoleId,
-        [string] $DisplayName,
-        [string] $Description,
-        [string] $Value,
-        [string[]] $AllowedMemberTypes)
-    {
-        $AppRole = $null
-        if ($this.Manifest.appRoles.Length -gt 0) {
-            $AppRole = $this.Manifest.appRoles | Where-Object {$_.id -eq $AppRoleId}
-        }
-        if (-not $AppRole) {
-            Write-Host "Adding $Value app role"
+    # EnsureAppRolesContain(
+    #     [string] $AppRoleId,
+    #     [string] $DisplayName,
+    #     [string] $Description,
+    #     [string] $Value,
+    #     [string[]] $AllowedMemberTypes)
+    # {
+    #     $AppRole = $null
+    #     if ($this.Manifest.appRoles.Length -gt 0) {
+    #         $AppRole = $this.Manifest.appRoles | Where-Object {$_.id -eq $AppRoleId}
+    #     }
+    #     if (-not $AppRole) {
+    #         Write-Host "Adding $Value app role"
     
-            $AppRole = @{
-                displayName = $DisplayName
-                id = $AppRoleId
-                isEnabled = $true
-                description = $Description
-                value = $Value
-                allowedMemberTypes = $AllowedMemberTypes
-            }
-            $AppRoles = $this.Manifest.appRoles + $AppRole
+    #         $AppRole = @{
+    #             displayName = $DisplayName
+    #             id = $AppRoleId
+    #             isEnabled = $true
+    #             description = $Description
+    #             value = $Value
+    #             allowedMemberTypes = $AllowedMemberTypes
+    #         }
+    #         $AppRoles = $this.Manifest.appRoles + $AppRole
     
-            $PatchAppRoles = @{appRoles=$AppRoles}
-            $PatchAppRolesJson = ConvertTo-Json $PatchAppRoles -Depth 4
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Method "PATCH" -Headers $this.InstanceDeploymentContext.GraphHeaders -Body $PatchAppRolesJson
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
-            $this.Manifest = ConvertFrom-Json $Response.Content
-        }
-    }
+    #         $PatchAppRoles = @{appRoles=$AppRoles}
+    #         $PatchAppRolesJson = ConvertTo-Json $PatchAppRoles -Depth 4
+    #         $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Method "PATCH" -Headers $this.InstanceDeploymentContext.GraphHeaders -Body $PatchAppRolesJson
+    #         $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
+    #         $this.Manifest = ConvertFrom-Json $Response.Content
+    #     }
+    # }
 }

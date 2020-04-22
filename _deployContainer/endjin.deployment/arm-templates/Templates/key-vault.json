@@ -60,6 +60,17 @@
   },
   "resources": [
     {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[parameters('diagnosticsStorageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2018-07-01",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "dependsOn": [],
+      "kind": "StorageV2"
+    },
+    {
       "type": "Microsoft.KeyVault/vaults",
       "name": "[parameters('keyVaultName')]",
       "apiVersion": "2015-06-01",
@@ -80,7 +91,8 @@
           "type": "providers/diagnosticSettings",
           "name": "Microsoft.Insights/service",
           "dependsOn": [
-            "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+            "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+            "[resourceId('Microsoft.Storage/storageAccounts', parameters('diagnosticsStorageAccountName'))]"
           ],
           "apiVersion": "2015-07-01",
           "properties": {

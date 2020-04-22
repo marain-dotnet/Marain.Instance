@@ -21,6 +21,10 @@
       "type": "string",
       "defaultValue": "[resourceGroup().location]"
     },
+    "storageAccountOwnerPrincipalIds": {
+      "type": "array",
+      "defaultValue": []
+    },
     "tagValues": {
       "type": "object",
       "defaultValue": {}
@@ -45,7 +49,7 @@
       "dependsOn": [],
       "tags": "[variables('tags')]",
       "kind": "StorageV2"
-    },
+    }
   ],
   "outputs": {
     "storageAccountKey": {

@@ -33,26 +33,4 @@ function New-AzureDeploymentContext
         DefaultResourceGroupName = $internalDeployContext.MakeResourceGroupName($Name)
         ApplicationInsightsInstrumentationKey = $null
     }
-
-    # return $script:DeploymentContext
-
-    # if ($IncludeServiceContext)
-    # {
-    #     # $internalServiceContext = [MarainServiceDeploymentContext]::new($internalDeployContext, $ServiceApiSuffix, $ServiceShortName, 'foo', 'foo')
-
-    #     $AppName = '{0}{1}{2}' -f $script:DeploymentContext.Prefix, $script:DeploymentContext.EnvironmentSuffix, $ServiceShortName.ToLower()
-        
-    #     $script:ServiceContext = @{
-    #         DeploymentContext = $script:DeploymentContext
-    #         GitHubRelease = 'foo'
-    #         TempFolder = 'foo'
-
-    #         AppNameRoot = $ServiceShortName.ToLower()
-    #         AppName = $AppName
-    #         AppServices = $internalServiceContext.AppServices
-    #         AdApps = $internalServiceContext.AdApps
-    #     }
-
-    #     $ServiceContext
-    # }
 }

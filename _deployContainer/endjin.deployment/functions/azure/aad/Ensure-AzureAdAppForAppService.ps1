@@ -1,30 +1,30 @@
 function Ensure-AzureAdAppForAppService
 {
     [CmdletBinding()]
-    param (
-        [Hashtable] $ServiceDeploymentContext
-        # [string] $AppNameSuffix
+    param
+    (
+        [string] $AppNameSuffix
     )
 
-    $AppNameWithSuffix = $ServiceDeploymentContext.AppName #+ $AppNameSuffix
+    $AppNameWithSuffix = $script:ServiceDeploymentContext.AppName + $AppNameSuffix
 
     $AdAppForAppService = @{
         Application = $null
         Principal = $null
     }
 
-    if (-not $ServiceDeploymentContext.DeploymentContext.GraphHeaders) {
-        $AppId = $ServiceDeploymentContext.DeploymentContext.AadAppIds[$AppNameWithSuffix]
+    if (-not $script:ServiceDeploymentContext.DeploymentContext.GraphHeaders) {
+        $AppId = $script:ServiceDeploymentContext.DeploymentContext.AadAppIds[$AppNameWithSuffix]
         if (-not $AppId) {
             Write-Error "AppId for $AppNameWithSuffix was not supplied in AadAppIds argument, and access to the Azure AD graph is not available (which it will not be when running on a build agent). Either run this in a context where graph access is available, or pass this app id in as an argument." 
         }
         # $adApp = [AzureAdApp]::new($ServiceDeploymentContext.DeploymentContext, $AppId)
         $adApp = Get-AzADApplication -ApplicationId $AppId
         # $ServiceDeploymentContext.AdApps += @{ $AppNameWithSuffix = $adApp }
-        $ServiceDeploymentContext.AdApps[$AppNameWithSuffix] = $adApp
+        $script:ServiceDeploymentContext.AdApps[$AppNameWithSuffix] = $adApp
         Write-Host ("AppId for {0} ({1}) is {2}" -f $AppNameWithSuffix, $AppNameWithSuffix, $AppId)
         
-        $AdAppForAppService.Application =  $adApp
+        $AdAppForAppService.Application = $adApp
         return $AdAppForAppService
     }
 
@@ -42,7 +42,7 @@ function Ensure-AzureAdAppForAppService
                              -ReplyUrls $ReplyUrls
 
     Write-Host ("AppId for {0} ({1}) is {2}" -f $AppNameWithSuffix, $AppDisplayName, $app.ApplicationId)
-    $ServiceDeploymentContext.AdApps[$AppNameWithSuffix] = $app
+    $script:ServiceDeploymentContext.AdApps[$AppNameWithSuffix] = $app
     $AdAppForAppService.Application = $app
 
     $Principal = Get-AzAdServicePrincipal -ApplicationId $app.ApplicationId

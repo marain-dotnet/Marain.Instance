@@ -291,99 +291,99 @@ class ResourceAccessDescriptor {
     [string]$Type
 }
 
-class MarainAppService
-{
-    MarainAppService(
-        [string]$AuthAppId,
-        [string]$ServicePrincipalId,
-        [string]$BaseUrl
-    )
-    {
-        $this.AuthAppId = $AuthAppId
-        $this.ServicePrincipalId = $ServicePrincipalId
-        $this.BaseUrl = $BaseUrl
-    }
+# class MarainAppService
+# {
+#     MarainAppService(
+#         [string]$AuthAppId,
+#         [string]$ServicePrincipalId,
+#         [string]$BaseUrl
+#     )
+#     {
+#         $this.AuthAppId = $AuthAppId
+#         $this.ServicePrincipalId = $ServicePrincipalId
+#         $this.BaseUrl = $BaseUrl
+#     }
 
-    [string]$AuthAppId
-    [string]$ServicePrincipalId
-    [string]$BaseUrl
-}
+#     [string]$AuthAppId
+#     [string]$ServicePrincipalId
+#     [string]$BaseUrl
+# }
 
-class AzureAdApp {
-    AzureAdApp(
-        [MarainServiceDeploymentContext] $ServiceDeploymentContext,
-        [string]$appId)
-    {
+# class AzureAdApp {
+#     AzureAdApp(
+#         [MarainServiceDeploymentContext] $ServiceDeploymentContext,
+#         [string]$appId)
+#     {
 
-        $this.ServiceDeploymentContext = $ServiceDeploymentContext
-        $this.InstanceDeploymentContext = $ServiceDeploymentContext.InstanceContext
-        $this.AppId = $appId
-    }
+#         $this.ServiceDeploymentContext = $ServiceDeploymentContext
+#         $this.InstanceDeploymentContext = $ServiceDeploymentContext.InstanceContext
+#         $this.AppId = $appId
+#     }
 
-    [string]$AppId
-        [MarainServiceDeploymentContext]$ServiceDeploymentContext
-        [MarainInstanceDeploymentContext]$InstanceDeploymentContext
+#     [string]$AppId
+#         [MarainServiceDeploymentContext]$ServiceDeploymentContext
+#         [MarainInstanceDeploymentContext]$InstanceDeploymentContext
 
-    # If these base class methods get invoked, it means we're running in the mode
-    # where we don't have permission to do anything with Graph API, and just have
-    # to presume it was all set up already.
-    # When we do have access to the Graph (e.g. because the script is being run
-    # locally) these will be overridden.
+#     # If these base class methods get invoked, it means we're running in the mode
+#     # where we don't have permission to do anything with Graph API, and just have
+#     # to presume it was all set up already.
+#     # When we do have access to the Graph (e.g. because the script is being run
+#     # locally) these will be overridden.
 
-    EnsureRequiredResourceAccessContains(
-        [string]$ResourceId,
-        [ResourceAccessDescriptor[]] $accessRequirements)
-    {
-    }
-}
+#     EnsureRequiredResourceAccessContains(
+#         [string]$ResourceId,
+#         [ResourceAccessDescriptor[]] $accessRequirements)
+#     {
+#     }
+# }
 
-class AzureAdAppWithGraphAccess : AzureAdApp {
-    AzureAdAppWithGraphAccess(
-        [MarainServiceDeploymentContext] $ServiceDeploymentContext,
-        [string]$appId,
-        [string]$objectId) : base($ServiceDeploymentContext, $appId) {
+# class AzureAdAppWithGraphAccess : AzureAdApp {
+#     AzureAdAppWithGraphAccess(
+#         [MarainServiceDeploymentContext] $ServiceDeploymentContext,
+#         [string]$appId,
+#         [string]$objectId) : base($ServiceDeploymentContext, $appId) {
 
-        $this.ObjectId = $objectId
+#         $this.ObjectId = $objectId
 
-        $this.GraphApiAppUri = ("https://graph.windows.net/{0}/applications/{1}?api-version=1.6" -f $this.InstanceDeploymentContext.TenantId, $objectId)
-        $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
-        $this.Manifest = ConvertFrom-Json $Response.Content
-    }
+#         $this.GraphApiAppUri = ("https://graph.windows.net/{0}/applications/{1}?api-version=1.6" -f $this.InstanceDeploymentContext.TenantId, $objectId)
+#         $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
+#         $this.Manifest = ConvertFrom-Json $Response.Content
+#     }
 
-    [string]$ObjectId
-    [string]$GraphApiAppUri
-    $Manifest
+#     [string]$ObjectId
+#     [string]$GraphApiAppUri
+#     $Manifest
 
-    EnsureRequiredResourceAccessContains(
-        [string]$ResourceId,
-        [ResourceAccessDescriptor[]] $accessRequirements)
-    {
-        $MadeChange = $false
-        $RequiredResourceAccess = $this.Manifest.requiredResourceAccess
-        $ResourceEntry = $RequiredResourceAccess | Where-Object {$_.resourceAppId -eq $ResourceId }
-        if (-not $ResourceEntry) {
-            $MadeChange = $true
-            $ResourceEntry = @{resourceAppId=$ResourceId;resourceAccess=@()}
-            $RequiredResourceAccess += $ResourceEntry
-        }
+#     EnsureRequiredResourceAccessContains(
+#         [string]$ResourceId,
+#         [ResourceAccessDescriptor[]] $accessRequirements)
+#     {
+#         $MadeChange = $false
+#         $RequiredResourceAccess = $this.Manifest.requiredResourceAccess
+#         $ResourceEntry = $RequiredResourceAccess | Where-Object {$_.resourceAppId -eq $ResourceId }
+#         if (-not $ResourceEntry) {
+#             $MadeChange = $true
+#             $ResourceEntry = @{resourceAppId=$ResourceId;resourceAccess=@()}
+#             $RequiredResourceAccess += $ResourceEntry
+#         }
         
-        foreach ($access in $accessRequirements) {
-            $RequiredAccess = $ResourceEntry.resourceAccess| Where-Object {$_.id -eq $access.Id -and $_.type -eq $access.Type}
-            if (-not $RequiredAccess) {
-                Write-Host "Adding '$ResourceId : $($access.id)' required resource access"
+#         foreach ($access in $accessRequirements) {
+#             $RequiredAccess = $ResourceEntry.resourceAccess| Where-Object {$_.id -eq $access.Id -and $_.type -eq $access.Type}
+#             if (-not $RequiredAccess) {
+#                 Write-Host "Adding '$ResourceId : $($access.id)' required resource access"
         
-                $RequiredAccess = @{id=$access.Id;type="Scope"}
-                $ResourceEntry.resourceAccess += $RequiredAccess
-                $MadeChange = $true
-            }
-        }
+#                 $RequiredAccess = @{id=$access.Id;type="Scope"}
+#                 $ResourceEntry.resourceAccess += $RequiredAccess
+#                 $MadeChange = $true
+#             }
+#         }
 
-        if ($MadeChange) {
-            $PatchRequiredResourceAccess = @{requiredResourceAccess=$RequiredResourceAccess}
-            $PatchRequiredResourceAccessJson = ConvertTo-Json $PatchRequiredResourceAccess -Depth 4
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Method "PATCH" -Headers $this.InstanceDeploymentContext.GraphHeaders -Body $PatchRequiredResourceAccessJson
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
-            $this.Manifest = ConvertFrom-Json $Response.Content
-        }
-    }
-}
+#         if ($MadeChange) {
+#             $PatchRequiredResourceAccess = @{requiredResourceAccess=$RequiredResourceAccess}
+#             $PatchRequiredResourceAccessJson = ConvertTo-Json $PatchRequiredResourceAccess -Depth 4
+#             $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Method "PATCH" -Headers $this.InstanceDeploymentContext.GraphHeaders -Body $PatchRequiredResourceAccessJson
+#             $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
+#             $this.Manifest = ConvertFrom-Json $Response.Content
+#         }
+#     }
+# }

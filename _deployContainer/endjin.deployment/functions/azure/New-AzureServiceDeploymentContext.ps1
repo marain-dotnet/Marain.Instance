@@ -3,14 +3,11 @@ function New-AzureServiceDeploymentContext
     [CmdletBinding()]
     param
     (
-        $DeploymentContext,
         $ServiceApiSuffix,
         $ServiceShortName,
         $GitHubRelease,
         $TempFolder
     )
-
-    # $internalContext = [MarainServiceDeploymentContext]::new($this, $ServiceApiSuffix, $ServiceShortName, $GitHubRelease, $TempFolder)
 
     $AppName = '{0}{1}{2}' -f $script:DeploymentContext.Prefix, $script:DeploymentContext.EnvironmentSuffix, $ServiceShortName.ToLower()
         
@@ -24,6 +21,4 @@ function New-AzureServiceDeploymentContext
         AppServices = @{}
         AdApps = @{}
     }
-
-    # return $script:ServiceContext
 }

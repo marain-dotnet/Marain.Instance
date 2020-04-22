@@ -10,16 +10,16 @@ function New-AzureDeploymentContext
         [string]$AadTenantId,
         [string]$SubscriptionId,
         [Hashtable]$AadAppIds,
-        [bool]$DoNotUseGraph
+        [bool]$DoNotUseGraph,
+
+        [switch]$IncludeServiceContext,
+        [string]$ServiceApiSuffix,
+        [string]$ServiceShortName
     )
 
-    # $here = Split-Path -Parent $PSCommandPath
-
-    # . $here/../../classes/AzureDeployment.ps1
-
-    $internalContext = [MarainInstanceDeploymentContext]::new($AzureLocation,$EnvironmentSuffix,"mar",$AadTenantId,$SubscriptionId,$AadAppIds,$DoNotUseGraph)
+    $internalDeployContext = [MarainInstanceDeploymentContext]::new($AzureLocation,$EnvironmentSuffix,"mar",$AadTenantId,$SubscriptionId,$AadAppIds,$DoNotUseGraph)
     
-    $context = @{
+    $deployContext = @{
         AzureLocation = $AzureLocation
         Prefix = $Prefix.ToLower()
         Name = $Name
@@ -28,11 +28,29 @@ function New-AzureDeploymentContext
         SubscriptionId = $SubscriptionId
         AadAppIds = $AadAppIds
         InstanceApps = @{}
-        GraphHeaders = $null
+        GraphHeaders = $internalDeployContext.GraphHeaders
         DeploymentStagingStorageAccountName = ('stage' + $AzureLocation + $SubscriptionId).Replace('-', '').substring(0, 24)
-        DefaultResourceGroupName = $internalContext.MakeResourceGroupName($Name)
+        DefaultResourceGroupName = $internalDeployContext.MakeResourceGroupName($Name)
         ApplicationInsightsInstrumentationKey = $null
     }
 
-    return $context
+    $deployContext
+
+    if ($IncludeServiceContext)
+    {
+        $internalServiceContext = [MarainServiceDeploymentContext]::new($internalDeployContext, $ServiceApiSuffix, $ServiceShortName, 'foo', 'foo')
+
+        $ServiceContext = @{
+            DeploymentContext = $deployContext
+            GitHubRelease = 'foo'
+            TempFolder = 'foo'
+
+            AppNameRoot = $ServiceShortName.ToLower()
+            AppName = $deployContext.Prefix + $deployContext.EnvironmentSuffix + $internalServiceContext.AppNameRoot
+            AppServices = $internalServiceContext.AppServices
+            AdApps = $internalServiceContext.AdApps
+        }
+
+        $ServiceContext
+    }
 }

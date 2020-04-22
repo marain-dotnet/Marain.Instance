@@ -36,11 +36,6 @@ function Ensure-AzureAdApp
         Write-Host "Created new app with id $($app.ApplicationId)"
     }
 
-    # TODO: return [AzureAdAppWithGraphAccess]::new($this, $app.ApplicationId, $app.ObjectId)
-
-    $AppDetails = @{
-        AppId = $app.ApplicationId
-        ObjectId = $app.ObjectId
-    }
-    return $AppDetails
+    # return the native Az cmdlet application object
+    return $app
 }

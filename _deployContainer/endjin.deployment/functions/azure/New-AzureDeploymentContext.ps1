@@ -19,7 +19,7 @@ function New-AzureDeploymentContext
 
     $internalDeployContext = [MarainInstanceDeploymentContext]::new($AzureLocation,$EnvironmentSuffix,"mar",$AadTenantId,$SubscriptionId,$AadAppIds,$DoNotUseGraph)
     
-    $deployContext = @{
+    $script:DeploymentContext = @{
         AzureLocation = $AzureLocation
         Prefix = $Prefix.ToLower()
         Name = $Name
@@ -34,23 +34,25 @@ function New-AzureDeploymentContext
         ApplicationInsightsInstrumentationKey = $null
     }
 
-    $deployContext
+    # return $script:DeploymentContext
 
-    if ($IncludeServiceContext)
-    {
-        $internalServiceContext = [MarainServiceDeploymentContext]::new($internalDeployContext, $ServiceApiSuffix, $ServiceShortName, 'foo', 'foo')
+    # if ($IncludeServiceContext)
+    # {
+    #     # $internalServiceContext = [MarainServiceDeploymentContext]::new($internalDeployContext, $ServiceApiSuffix, $ServiceShortName, 'foo', 'foo')
 
-        $ServiceContext = @{
-            DeploymentContext = $deployContext
-            GitHubRelease = 'foo'
-            TempFolder = 'foo'
+    #     $AppName = '{0}{1}{2}' -f $script:DeploymentContext.Prefix, $script:DeploymentContext.EnvironmentSuffix, $ServiceShortName.ToLower()
+        
+    #     $script:ServiceContext = @{
+    #         DeploymentContext = $script:DeploymentContext
+    #         GitHubRelease = 'foo'
+    #         TempFolder = 'foo'
 
-            AppNameRoot = $ServiceShortName.ToLower()
-            AppName = $deployContext.Prefix + $deployContext.EnvironmentSuffix + $internalServiceContext.AppNameRoot
-            AppServices = $internalServiceContext.AppServices
-            AdApps = $internalServiceContext.AdApps
-        }
+    #         AppNameRoot = $ServiceShortName.ToLower()
+    #         AppName = $AppName
+    #         AppServices = $internalServiceContext.AppServices
+    #         AdApps = $internalServiceContext.AdApps
+    #     }
 
-        $ServiceContext
-    }
+    #     $ServiceContext
+    # }
 }

@@ -10,18 +10,20 @@ function New-AzureServiceDeploymentContext
         $TempFolder
     )
 
-    $internalContext = [MarainServiceDeploymentContext]::new($this, $ServiceApiSuffix, $ServiceShortName, $GitHubRelease, $TempFolder)
+    # $internalContext = [MarainServiceDeploymentContext]::new($this, $ServiceApiSuffix, $ServiceShortName, $GitHubRelease, $TempFolder)
 
-    $context = @{
-        DeploymentContext = $DeploymentContext
-        GitHubRelease = $GitHubRelease
-        TempFolder = $TempFolder
+    $AppName = '{0}{1}{2}' -f $script:DeploymentContext.Prefix, $script:DeploymentContext.EnvironmentSuffix, $ServiceShortName.ToLower()
+        
+    $script:ServiceDeploymentContext = @{
+        DeploymentContext = $script:DeploymentContext
+        GitHubRelease = 'foo'
+        TempFolder = 'foo'
 
         AppNameRoot = $ServiceShortName.ToLower()
-        AppName = $DeploymentContext.Prefix + $DeploymentContext.EnvironmentSuffix + $this.AppNameRoot
-        AppServices = $internalContext.AppServices
-        AdApps = $internalContext.AdApps
+        AppName = $AppName
+        AppServices = @{}
+        AdApps = @{}
     }
 
-    return $context
+    # return $script:ServiceContext
 }

@@ -1,0 +1,12 @@
+---
+AzureLocation: northeurope
+EnvironmentSuffix: dev
+AadTenantId: ''
+SubscriptionId: ''
+AadAppIds: []
+AadOnly: false
+SkipInstanceDeploy: false
+DoNotUseGraph: false
+ResourceGroupNameRoot: Marain
+SingleServiceToDeploy:
+    DeploymentAssetLocalOverrides: []

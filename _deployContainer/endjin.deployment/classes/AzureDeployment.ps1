@@ -291,51 +291,51 @@ class ResourceAccessDescriptor {
     [string]$Type
 }
 
-# class MarainAppService
-# {
-#     MarainAppService(
-#         [string]$AuthAppId,
-#         [string]$ServicePrincipalId,
-#         [string]$BaseUrl
-#     )
-#     {
-#         $this.AuthAppId = $AuthAppId
-#         $this.ServicePrincipalId = $ServicePrincipalId
-#         $this.BaseUrl = $BaseUrl
-#     }
+class MarainAppService
+{
+    MarainAppService(
+        [string]$AuthAppId,
+        [string]$ServicePrincipalId,
+        [string]$BaseUrl
+    )
+    {
+        $this.AuthAppId = $AuthAppId
+        $this.ServicePrincipalId = $ServicePrincipalId
+        $this.BaseUrl = $BaseUrl
+    }
 
-#     [string]$AuthAppId
-#     [string]$ServicePrincipalId
-#     [string]$BaseUrl
-# }
+    [string]$AuthAppId
+    [string]$ServicePrincipalId
+    [string]$BaseUrl
+}
 
-# class AzureAdApp {
-#     AzureAdApp(
-#         [MarainServiceDeploymentContext] $ServiceDeploymentContext,
-#         [string]$appId)
-#     {
+class AzureAdApp {
+    AzureAdApp(
+        [MarainServiceDeploymentContext] $ServiceDeploymentContext,
+        [string]$appId)
+    {
 
-#         $this.ServiceDeploymentContext = $ServiceDeploymentContext
-#         $this.InstanceDeploymentContext = $ServiceDeploymentContext.InstanceContext
-#         $this.AppId = $appId
-#     }
+        $this.ServiceDeploymentContext = $ServiceDeploymentContext
+        $this.InstanceDeploymentContext = $ServiceDeploymentContext.InstanceContext
+        $this.AppId = $appId
+    }
 
-#     [string]$AppId
-#         [MarainServiceDeploymentContext]$ServiceDeploymentContext
-#         [MarainInstanceDeploymentContext]$InstanceDeploymentContext
+    [string]$AppId
+        [MarainServiceDeploymentContext]$ServiceDeploymentContext
+        [MarainInstanceDeploymentContext]$InstanceDeploymentContext
 
-#     # If these base class methods get invoked, it means we're running in the mode
-#     # where we don't have permission to do anything with Graph API, and just have
-#     # to presume it was all set up already.
-#     # When we do have access to the Graph (e.g. because the script is being run
-#     # locally) these will be overridden.
+    # If these base class methods get invoked, it means we're running in the mode
+    # where we don't have permission to do anything with Graph API, and just have
+    # to presume it was all set up already.
+    # When we do have access to the Graph (e.g. because the script is being run
+    # locally) these will be overridden.
 
-#     EnsureRequiredResourceAccessContains(
-#         [string]$ResourceId,
-#         [ResourceAccessDescriptor[]] $accessRequirements)
-#     {
-#     }
-# }
+    EnsureRequiredResourceAccessContains(
+        [string]$ResourceId,
+        [ResourceAccessDescriptor[]] $accessRequirements)
+    {
+    }
+}
 
 # class AzureAdAppWithGraphAccess : AzureAdApp {
 #     AzureAdAppWithGraphAccess(

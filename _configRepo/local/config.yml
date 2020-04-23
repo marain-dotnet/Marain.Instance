@@ -1,0 +1,16 @@
+---
+AzureLocation: uksouth
+EnvironmentSuffix: jd
+AadTenantId: 0f621c67-98a0-4ed5-b5bd-31a35be41e29
+SubscriptionId: 13821a69-41a3-43ab-9577-1519963ea474
+AadAppIds:
+    marjdtenancy: b1556de5-5bc6-4632-b813-2ef4881506a7
+AadOnly: false
+SkipInstanceDeploy: false
+DoNotUseGraph: false
+ResourceGroupNameRoot: Marain
+SingleServiceToDeploy:
+    DeploymentAssetLocalOverrides: []
+
+# temp value
+AppInsightsInstrumentationKey: db9e0688-2bca-4ace-81e7-2a8b7c832aac

@@ -17,4 +17,5 @@ RUN apt-get update \
         azure-cli \
     && rm -rf /var/lib/apt/lists/*
 
+# Bake our module into the image
 COPY endjin.deployment /usr/local/share/powershell/Modules/endjin.deployment

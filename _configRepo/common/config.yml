@@ -1,0 +1,20 @@
+---
+MarainServices:
+    Marain.Tenancy:
+        gitHubProject: marain-dotnet/Marain.Tenancy
+        apiPrefix: tenancy
+    Marain.Operations:
+        gitHubProject: marain-dotnet/Marain.Operations
+        apiPrefix: operations
+    Marain.Workflow:
+        gitHubProject: marain-dotnet/Marain.Workflow
+        apiPrefix: workflow
+
+InstanceManifest:
+    services:
+        Marain.Tenancy:
+            release: 0.3.0-59-deployment-advertise-service.9
+        Marain.Operations:
+            release: 0.9.0-68-clienttenantprovider.5
+        Marain.Workflow:
+            release: 0.2.0-preview.12

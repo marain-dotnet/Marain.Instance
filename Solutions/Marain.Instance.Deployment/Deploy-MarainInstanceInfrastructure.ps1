@@ -77,6 +77,9 @@ class MarainInstanceDeploymentContext {
 
     [string]$ApplicationInsightsInstrumentationKey
     [string]$KeyVaultName
+    [string]$TenantAdminAppId
+    [string]$TenantAdminObjectId
+    [string]$TenantAdminSecret
     [string]$DeploymentUserObjectId
 
     [MarainServiceDeploymentContext]CreateServiceDeploymentContext (

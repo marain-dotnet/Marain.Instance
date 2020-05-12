@@ -76,6 +76,8 @@ class MarainInstanceDeploymentContext {
     [string]$DeploymentStagingStorageAccountName
 
     [string]$ApplicationInsightsInstrumentationKey
+    [string]$KeyVaultName
+    [string]$DeploymentUserObjectId
 
     [MarainServiceDeploymentContext]CreateServiceDeploymentContext (
         [string]$ServiceApiSuffix,
@@ -688,15 +690,29 @@ $InstanceDeploymentContext = [MarainInstanceDeploymentContext]::new(
     $AadAppIds,
     $DoNotUseGraph)
 
+
+# Lookup the identity of the deployment user, as we need their objectId to grant keyvault access
+$currentContext = Get-AzContext
+if ($currentContext.Account.Id -imatch "@") {
+    $currentUser = Get-AzAdUser -UserPrincipalName $currentContext.Account.Id
+    $InstanceDeploymentContext.DeploymentUserObjectId = $currentUser.Id
+}
+else {
+    $currentSp = Get-AzADServicePrincipal -ApplicationId $currentContext.Account.Id
+    $InstanceDeploymentContext.DeploymentUserObjectId = $currentSp.Id
+}
+
+
 $InstanceResourceGroupName = $InstanceDeploymentContext.MakeResourceGroupName("instance")
 
 if (-not $AadOnly -and (-not $SkipInstanceDeploy)) {
     if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq 'Marain.Instance')) {
         Write-Host "Deploying shared Marain infrastructure"
 
-        $DeploymentResult = $InstanceDeploymentContext.DeployArmTemplate($PSScriptRoot, "azuredeploy.json", @{}, $InstanceResourceGroupName)
+        $DeploymentResult = $InstanceDeploymentContext.DeployArmTemplate($PSScriptRoot, "azuredeploy.json", @{deployUserObjectId=$InstanceDeploymentContext.DeploymentUserObjectId}, $InstanceResourceGroupName)
 
         $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey = $DeploymentResult.Outputs.instrumentationKey.Value
+        $InstanceDeploymentContext.KeyVaultName = $DeploymentResult.Outputs.keyVaultName.Value
         Write-Host "Shared Marain infrastructure deployment complete"
     }
 }
@@ -704,6 +720,12 @@ if (-not $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey -and (
     $AiName = ("{0}{1}ai" -f $InstanceDeploymentContext.Prefix, $InstanceDeploymentContext.EnvironmentSuffix)
     $Ai = Get-AzApplicationInsights -ResourceGroupName $InstanceResourceGroupName -Name $AiName
     $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey = $Ai.InstrumentationKey
+}
+
+if (-not $InstanceDeploymentContext.KeyVaultName) {
+    # TODO: shouldn't be more than 1 keyvault
+    $keyVault = Get-AzKeyVault -ResourceGroupName $InstanceResourceGroupName | Select -First 1
+    $InstanceDeploymentContext.KeyVaultName = $keyVault.VaultName
 }
 
 ForEach ($kv in $MarainServices.PSObject.Properties) {
@@ -762,6 +784,9 @@ ForEach ($kv in $MarainServices.PSObject.Properties) {
                         Write-Host " Running $scriptName"
                         . $ScriptPath
                         MarainDeployment $ServiceDeploymentContext
+                    }
+                    else {
+                        Write-Verbose "Skipping $scriptName - not found: $ScriptPath"
                     }
                 }
 

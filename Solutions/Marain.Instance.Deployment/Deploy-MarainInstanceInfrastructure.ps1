@@ -637,6 +637,32 @@ function ParseJsonC([string] $path) {
     return (Get-Content $path -raw) | ConvertFrom-Json
 }
 
+# ensure PowerShell Az modules are available
+$azAvailable = Get-Module Az -ListAvailable
+if ($null -eq $azAvailable) {
+    Write-Error "Az PowerShell modules are not installed - they can be installed using 'Install-Module Az -AllowClobber -Force'"
+}
+
+# Ensure PowerShell Az is logged-in with graph API access, if available 
+if ($null -eq (Get-AzContext) -and [Environment]::UserInteractive) {
+    Connect-AzAccount -Subscription $SubscriptionId -Tenant $AadTenantId
+}
+elseif ($null -eq (Get-AzContext)) {
+    Write-Error "When running non-interactively the process must already be logged-in to the Az PowerShell modules"
+}
+
+# Ensure we're connected to the correct subscription
+Set-AzContext -SubscriptionId $SubscriptionId -Tenant $AadTenantId | Out-Null
+
+# perform an arbitrary AAD operation to force getting a graph api token
+$AadGraphApiResourceId = "https://graph.windows.net/"
+Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction SilentlyContinue | Out-Null
+$GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { $_.TenantId -eq $AadTenantId -and $_.Resource -eq $AadGraphApiResourceId }
+if (!$GraphToken) {
+    Write-Warning "No graph token available. AAD operations will not be performed."
+    $DoNotUseGraph = $True
+}
+
 $MarainServicesPath = Join-Path -Resolve $PSScriptRoot "../MarainServices.jsonc"
 $MarainServices = ParseJsonC $MarainServicesPath
 
@@ -702,9 +728,9 @@ ForEach ($kv in $MarainServices.PSObject.Properties) {
             Write-Host ("Processing asset {0}" -f $asset.name)
             $url = $asset.browser_download_url
             $TempDir = Join-Path $PSScriptRoot ("{0}-temp" -f $asset.name)
-            $null = New-Item -Path $TempDir -ItemType Directory
+            New-Item -Path $TempDir -ItemType Directory | Out-Null
             $DeploymentPackageDir = Join-Path $TempDir "DeploymentPackage"
-            $null = New-Item -Path $DeploymentPackageDir -ItemType Directory
+            New-Item -Path $DeploymentPackageDir -ItemType Directory 
             try {
                 $ZipPath = Join-Path $DeploymentPackageDir $asset.name
 
@@ -754,7 +780,7 @@ ForEach ($kv in $MarainServices.PSObject.Properties) {
                 }
 
             } finally {
-                Remove-Item -Recurse $TempDir
+                Remove-Item -Recurse -Force $TempDir
             }
         }
     }

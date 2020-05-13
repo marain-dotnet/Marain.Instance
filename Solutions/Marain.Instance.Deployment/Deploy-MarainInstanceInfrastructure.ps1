@@ -84,6 +84,8 @@ class MarainInstanceDeploymentContext {
     [string]$TenantAdminSecret
     [string]$DeploymentUserObjectId
 
+    [string]$MarainCliPath = (Join-Path $PSScriptRoot "tools/maraincli/marain")
+
     [MarainServiceDeploymentContext]CreateServiceDeploymentContext (
         [string]$ServiceApiSuffix,
         [string]$ServiceShortName,

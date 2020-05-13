@@ -664,6 +664,35 @@ try {
     # Ensure we're connected to the correct subscription
     Set-AzContext -SubscriptionId $SubscriptionId -Tenant $AadTenantId | Out-Null
 
+
+    # check that the azure-cli is installed
+    try {
+        Invoke-Expression 'az --version' | Out-Null
+    }
+    catch {
+        Write-Error "The Azure-cli must be installed in order to run this deployment process"
+    }
+
+    # check that the azure-cli is logged-in
+    try {
+        $azCliToken = $(& az account get-access-token) | ConvertFrom-Json
+        if ([datetime]$azCliToken.expiresOn -le [datetime]::Now) {
+            throw   # force a login
+        }
+    }
+    catch {
+        if ([Environment]::UserInteractive) {
+            & az login --tenant $AadTenantId | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "There was a problem logging into the Azure-cli - check any previous messages"
+            }
+        }
+        else {
+            Write-Error "When running non-interactively the process must already be logged-in to the Azure-cli"
+        }
+    }
+    & az account set --subscription $SubscriptionId | Out-Null
+
     # perform an arbitrary AAD operation to force getting a graph api token
     $AadGraphApiResourceId = "https://graph.windows.net/"
     Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction SilentlyContinue | Out-Null

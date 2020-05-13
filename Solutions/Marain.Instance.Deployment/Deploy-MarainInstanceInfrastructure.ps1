@@ -73,7 +73,7 @@ class MarainInstanceDeploymentContext {
     [string]$SubscriptionId
     [Hashtable]$AadAppIds
     [Hashtable]$InstanceApps
-    [string]$DoNotUseGraph
+    [bool]$DoNotUseGraph
 
     [string]$DeploymentStagingStorageAccountName
 

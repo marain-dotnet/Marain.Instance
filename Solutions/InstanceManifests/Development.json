@@ -1,12 +1,14 @@
 {
   "services": {
     "Marain.Tenancy": {
-      "release": "0.3.0-preview.33"
+      "omit": true,
+      "release": "0.3.0-powershell-deploy.5"
     },
     "Marain.Operations": {
-      "release": "0.9.0-preview.14"
+      "release": "0.9.0-powershell-deploy.13"
     },
     "Marain.Workflow": {
+      "omit": true,
       "release": "0.2.0-preview.43"
     }
   }

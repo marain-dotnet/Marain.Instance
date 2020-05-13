@@ -37,6 +37,7 @@ class MarainInstanceDeploymentContext {
         $this.SubscriptionId = $SubscriptionId
         $this.AadAppIds = $AadAppIds
         $this.InstanceApps = @{}
+        $this.DoNotUseGraph = $DoNotUseGraph
 
         # Note, we're using the Az module here.
         # If this fails ensure you run:
@@ -72,6 +73,7 @@ class MarainInstanceDeploymentContext {
     [string]$SubscriptionId
     [Hashtable]$AadAppIds
     [Hashtable]$InstanceApps
+    [string]$DoNotUseGraph
 
     [string]$DeploymentStagingStorageAccountName
 
@@ -666,6 +668,11 @@ $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { $_.TenantI
 if (!$GraphToken) {
     Write-Warning "No graph token available. AAD operations will not be performed."
     $DoNotUseGraph = $True
+}
+
+# Fail early if we have no graph access and no predefined appId's
+if ($DoNotUseGraph -and (!$AadAppIds -or $AadAppIds.Count -eq 0)) {
+    Write-Error "When running without access to AAD, you must specify the existing AAD applications in the 'AadAppIds' hashtable parameter"
 }
 
 $MarainServicesPath = Join-Path -Resolve $PSScriptRoot "../MarainServices.jsonc"

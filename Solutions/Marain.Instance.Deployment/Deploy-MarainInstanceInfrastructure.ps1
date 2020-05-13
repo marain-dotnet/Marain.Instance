@@ -644,179 +644,186 @@ function ParseJsonC([string] $path) {
     return (Get-Content $path -raw) | ConvertFrom-Json
 }
 
-# ensure PowerShell Az modules are available
-$azAvailable = Get-Module Az -ListAvailable
-if ($null -eq $azAvailable) {
-    Write-Error "Az PowerShell modules are not installed - they can be installed using 'Install-Module Az -AllowClobber -Force'"
-}
-
-# Ensure PowerShell Az is logged-in with graph API access, if available 
-if ($null -eq (Get-AzContext) -and [Environment]::UserInteractive) {
-    Connect-AzAccount -Subscription $SubscriptionId -Tenant $AadTenantId
-}
-elseif ($null -eq (Get-AzContext)) {
-    Write-Error "When running non-interactively the process must already be logged-in to the Az PowerShell modules"
-}
-
-# Ensure we're connected to the correct subscription
-Set-AzContext -SubscriptionId $SubscriptionId -Tenant $AadTenantId | Out-Null
-
-# perform an arbitrary AAD operation to force getting a graph api token
-$AadGraphApiResourceId = "https://graph.windows.net/"
-Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction SilentlyContinue | Out-Null
-$GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { $_.TenantId -eq $AadTenantId -and $_.Resource -eq $AadGraphApiResourceId }
-if (!$GraphToken) {
-    Write-Warning "No graph token available. AAD operations will not be performed."
-    $DoNotUseGraph = $True
-}
-
-# Fail early if we have no graph access and no predefined appId's
-if ($DoNotUseGraph -and (!$AadAppIds -or $AadAppIds.Count -eq 0)) {
-    Write-Error "When running without access to AAD, you must specify the existing AAD applications in the 'AadAppIds' hashtable parameter"
-}
-
-$MarainServicesPath = Join-Path -Resolve $PSScriptRoot "../MarainServices.jsonc"
-$MarainServices = ParseJsonC $MarainServicesPath
-
-# Looks like PowerShell doesn't have a direct equivalent to .NET's ability to combine two paths
-# in a way that just ignores the first path if the second is absolute
-$InstanceManifestPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $InstanceManifestPath))
-$InstanceManifest = ParseJsonC $InstanceManifestPath
-
-# Check we've got an entry for each known service.
-ForEach ($kv in $MarainServices.PSObject.Properties) {
-    $MarainServiceName = $kv.Name
-    if (-not (Get-Member -InputObject $InstanceManifest.services -name $MarainServiceName)) {
-        Write-Error "Instance manifest does not contain an entry for $MarainServiceName. (Define an entry setting \"omit\":true if you don't want to deploy this service)"
+try {
+    # ensure PowerShell Az modules are available
+    $azAvailable = Get-Module Az -ListAvailable
+    if ($null -eq $azAvailable) {
+        Write-Error "Az PowerShell modules are not installed - they can be installed using 'Install-Module Az -AllowClobber -Force'"
     }
-}
 
-$InstanceDeploymentContext = [MarainInstanceDeploymentContext]::new(
-    $AzureLocation,
-    $EnvironmentSuffix,
-    "mar",
-    $AadTenantId,
-    $SubscriptionId,
-    $AadAppIds,
-    $DoNotUseGraph)
-
-
-# Lookup the identity of the deployment user, as we need their objectId to grant keyvault access
-$currentContext = Get-AzContext
-if ($currentContext.Account.Id -imatch "@") {
-    $currentUser = Get-AzAdUser -UserPrincipalName $currentContext.Account.Id
-    $InstanceDeploymentContext.DeploymentUserObjectId = $currentUser.Id
-}
-else {
-    $currentSp = Get-AzADServicePrincipal -ApplicationId $currentContext.Account.Id
-    $InstanceDeploymentContext.DeploymentUserObjectId = $currentSp.Id
-}
-
-
-$InstanceResourceGroupName = $InstanceDeploymentContext.MakeResourceGroupName("instance")
-
-if (-not $AadOnly -and (-not $SkipInstanceDeploy)) {
-    if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq 'Marain.Instance')) {
-        Write-Host "Deploying shared Marain infrastructure"
-
-        $DeploymentResult = $InstanceDeploymentContext.DeployArmTemplate($PSScriptRoot, "azuredeploy.json", @{deployUserObjectId=$InstanceDeploymentContext.DeploymentUserObjectId}, $InstanceResourceGroupName)
-
-        $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey = $DeploymentResult.Outputs.instrumentationKey.Value
-        $InstanceDeploymentContext.KeyVaultName = $DeploymentResult.Outputs.keyVaultName.Value
-        Write-Host "Shared Marain infrastructure deployment complete"
+    # Ensure PowerShell Az is logged-in with graph API access, if available 
+    if ($null -eq (Get-AzContext) -and [Environment]::UserInteractive) {
+        Connect-AzAccount -Subscription $SubscriptionId -Tenant $AadTenantId
     }
-}
-if (-not $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey -and (-not $AadOnly)) {
-    $AiName = ("{0}{1}ai" -f $InstanceDeploymentContext.Prefix, $InstanceDeploymentContext.EnvironmentSuffix)
-    $Ai = Get-AzApplicationInsights -ResourceGroupName $InstanceResourceGroupName -Name $AiName
-    $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey = $Ai.InstrumentationKey
-}
+    elseif ($null -eq (Get-AzContext)) {
+        Write-Error "When running non-interactively the process must already be logged-in to the Az PowerShell modules"
+    }
 
-if (-not $InstanceDeploymentContext.KeyVaultName) {
-    # TODO: shouldn't be more than 1 keyvault
-    $keyVault = Get-AzKeyVault -ResourceGroupName $InstanceResourceGroupName | Select -First 1
-    $InstanceDeploymentContext.KeyVaultName = $keyVault.VaultName
-}
+    # Ensure we're connected to the correct subscription
+    Set-AzContext -SubscriptionId $SubscriptionId -Tenant $AadTenantId | Out-Null
 
-ForEach ($kv in $MarainServices.PSObject.Properties) {
-    $MarainServiceName = $kv.Name
-    $MarainService = $kv.Value
+    # perform an arbitrary AAD operation to force getting a graph api token
+    $AadGraphApiResourceId = "https://graph.windows.net/"
+    Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction SilentlyContinue | Out-Null
+    $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { $_.TenantId -eq $AadTenantId -and $_.Resource -eq $AadGraphApiResourceId }
+    if (!$GraphToken) {
+        Write-Warning "No graph token available. AAD operations will not be performed."
+        $DoNotUseGraph = $True
+    }
 
-    if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq $MarainServiceName)) {
-        $ServiceManifestEntry = $InstanceManifest.services.$MarainServiceName
-        Write-Host "Starting infrastructure deployment for $MarainServiceName"
-        $GitHubProject = $MarainService.gitHubProject
-        Write-Host " GitHub project $GitHubProject"
-        $ReleaseVersion = $ServiceManifestEntry.release
-        Write-Host " Release version $ReleaseVersion"
+    # Fail early if we have no graph access and no predefined appId's
+    if ($DoNotUseGraph -and (!$AadAppIds -or $AadAppIds.Count -eq 0)) {
+        Write-Error "When running without access to AAD, you must specify the existing AAD applications in the 'AadAppIds' hashtable parameter"
+    }
 
-        $ReleaseUrl = "https://api.github.com/repos/{0}/releases/tags/{1}" -f $GitHubProject, $ReleaseVersion
-        Write-Host " Downloading from $ReleaseUrl..."
-        $ReleaseResponse = Invoke-WebRequest -Uri $ReleaseUrl
-        Write-Host " Download complete"
-        $Release = ConvertFrom-Json $ReleaseResponse.Content
-        $DeploymentAssets = $Release.assets | Where-Object  { $_.name.EndsWith(".Deployment.zip") }
-        foreach ($asset in $DeploymentAssets) {
-            Write-Host ("Processing asset {0}" -f $asset.name)
-            $url = $asset.browser_download_url
-            $TempDir = Join-Path $PSScriptRoot ("{0}-temp" -f $asset.name)
-            New-Item -Path $TempDir -ItemType Directory | Out-Null
-            $DeploymentPackageDir = Join-Path $TempDir "DeploymentPackage"
-            New-Item -Path $DeploymentPackageDir -ItemType Directory 
-            try {
-                $ZipPath = Join-Path $DeploymentPackageDir $asset.name
+    $MarainServicesPath = Join-Path -Resolve $PSScriptRoot "../MarainServices.jsonc"
+    $MarainServices = ParseJsonC $MarainServicesPath
 
-                if (-not ($DeploymentAssetLocalOverrides -and $DeploymentAssetLocalOverrides.ContainsKey($MarainServiceName))) {
-                    Invoke-WebRequest -Uri $url -OutFile $ZipPath
-                    Expand-Archive $ZipPath -DestinationPath $DeploymentPackageDir
-                }
+    # Looks like PowerShell doesn't have a direct equivalent to .NET's ability to combine two paths
+    # in a way that just ignores the first path if the second is absolute
+    $InstanceManifestPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $InstanceManifestPath))
+    $InstanceManifest = ParseJsonC $InstanceManifestPath
 
-                # We create a new one of these for each deployment ZIP even though
-                # the settings are the same across each one in the service, because
-                # service-specific deployment scripts can add values to the
-                # context's variables, so we need a new one each time to maintain
-                # isolation
-                $ServiceDeploymentContext = $InstanceDeploymentContext.CreateServiceDeploymentContext(
-                    $MarainService.apiPrefix,
-                    $MarainService.apiPrefix,
-                    $Release,
-                    $TempDir)
+    # Check we've got an entry for each known service.
+    ForEach ($kv in $MarainServices.PSObject.Properties) {
+        $MarainServiceName = $kv.Name
+        if (-not (Get-Member -InputObject $InstanceManifest.services -name $MarainServiceName)) {
+            Write-Error "Instance manifest does not contain an entry for $MarainServiceName. (Define an entry setting \"omit\":true if you don't want to deploy this service)"
+        }
+    }
 
-                # This nested function enables us to . source each service's scripts. When
-                # the nested function exits, everything it . sourced goes out of scope.
-                Function LoadAndRun([string] $scriptName) {
-                    if ($DeploymentAssetLocalOverrides -and $DeploymentAssetLocalOverrides.ContainsKey($MarainServiceName)) {
-                        $ScriptPath = Join-Path $DeploymentAssetLocalOverrides[$MarainServiceName] $scriptName
-                    } else {
-                        $ScriptPath = Join-Path $DeploymentPackageDir $scriptName
+    $InstanceDeploymentContext = [MarainInstanceDeploymentContext]::new(
+        $AzureLocation,
+        $EnvironmentSuffix,
+        "mar",
+        $AadTenantId,
+        $SubscriptionId,
+        $AadAppIds,
+        $DoNotUseGraph)
+
+
+    # Lookup the identity of the deployment user, as we need their objectId to grant keyvault access
+    $currentContext = Get-AzContext
+    if ($currentContext.Account.Id -imatch "@") {
+        $currentUser = Get-AzAdUser -UserPrincipalName $currentContext.Account.Id
+        $InstanceDeploymentContext.DeploymentUserObjectId = $currentUser.Id
+    }
+    else {
+        $currentSp = Get-AzADServicePrincipal -ApplicationId $currentContext.Account.Id
+        $InstanceDeploymentContext.DeploymentUserObjectId = $currentSp.Id
+    }
+
+
+    $InstanceResourceGroupName = $InstanceDeploymentContext.MakeResourceGroupName("instance")
+
+    if (-not $AadOnly -and (-not $SkipInstanceDeploy)) {
+        if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq 'Marain.Instance')) {
+            Write-Host "Deploying shared Marain infrastructure"
+
+            $DeploymentResult = $InstanceDeploymentContext.DeployArmTemplate($PSScriptRoot, "azuredeploy.json", @{deployUserObjectId=$InstanceDeploymentContext.DeploymentUserObjectId}, $InstanceResourceGroupName)
+
+            $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey = $DeploymentResult.Outputs.instrumentationKey.Value
+            $InstanceDeploymentContext.KeyVaultName = $DeploymentResult.Outputs.keyVaultName.Value
+            Write-Host "Shared Marain infrastructure deployment complete"
+        }
+    }
+    if (-not $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey -and (-not $AadOnly)) {
+        $AiName = ("{0}{1}ai" -f $InstanceDeploymentContext.Prefix, $InstanceDeploymentContext.EnvironmentSuffix)
+        $Ai = Get-AzApplicationInsights -ResourceGroupName $InstanceResourceGroupName -Name $AiName
+        $InstanceDeploymentContext.ApplicationInsightsInstrumentationKey = $Ai.InstrumentationKey
+    }
+
+    if (-not $InstanceDeploymentContext.KeyVaultName) {
+        # TODO: shouldn't be more than 1 keyvault
+        $keyVault = Get-AzKeyVault -ResourceGroupName $InstanceResourceGroupName | Select -First 1
+        $InstanceDeploymentContext.KeyVaultName = $keyVault.VaultName
+    }
+
+    ForEach ($kv in $MarainServices.PSObject.Properties) {
+        $MarainServiceName = $kv.Name
+        $MarainService = $kv.Value
+
+        if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq $MarainServiceName)) {
+            $ServiceManifestEntry = $InstanceManifest.services.$MarainServiceName
+            Write-Host "Starting infrastructure deployment for $MarainServiceName"
+            $GitHubProject = $MarainService.gitHubProject
+            Write-Host " GitHub project $GitHubProject"
+            $ReleaseVersion = $ServiceManifestEntry.release
+            Write-Host " Release version $ReleaseVersion"
+
+            $ReleaseUrl = "https://api.github.com/repos/{0}/releases/tags/{1}" -f $GitHubProject, $ReleaseVersion
+            Write-Host " Downloading from $ReleaseUrl..."
+            $ReleaseResponse = Invoke-WebRequest -Uri $ReleaseUrl
+            Write-Host " Download complete"
+            $Release = ConvertFrom-Json $ReleaseResponse.Content
+            $DeploymentAssets = $Release.assets | Where-Object  { $_.name.EndsWith(".Deployment.zip") }
+            foreach ($asset in $DeploymentAssets) {
+                Write-Host ("Processing asset {0}" -f $asset.name)
+                $url = $asset.browser_download_url
+                $TempDir = Join-Path $PSScriptRoot ("{0}-temp" -f $asset.name)
+                New-Item -Path $TempDir -ItemType Directory | Out-Null
+                $DeploymentPackageDir = Join-Path $TempDir "DeploymentPackage"
+                New-Item -Path $DeploymentPackageDir -ItemType Directory 
+                try {
+                    $ZipPath = Join-Path $DeploymentPackageDir $asset.name
+
+                    if (-not ($DeploymentAssetLocalOverrides -and $DeploymentAssetLocalOverrides.ContainsKey($MarainServiceName))) {
+                        Invoke-WebRequest -Uri $url -OutFile $ZipPath
+                        Expand-Archive $ZipPath -DestinationPath $DeploymentPackageDir
                     }
-                    if (Test-Path $ScriptPath) {
-                        Write-Host " Running $scriptName"
-                        . $ScriptPath
-                        MarainDeployment $ServiceDeploymentContext
+
+                    # We create a new one of these for each deployment ZIP even though
+                    # the settings are the same across each one in the service, because
+                    # service-specific deployment scripts can add values to the
+                    # context's variables, so we need a new one each time to maintain
+                    # isolation
+                    $ServiceDeploymentContext = $InstanceDeploymentContext.CreateServiceDeploymentContext(
+                        $MarainService.apiPrefix,
+                        $MarainService.apiPrefix,
+                        $Release,
+                        $TempDir)
+
+                    # This nested function enables us to . source each service's scripts. When
+                    # the nested function exits, everything it . sourced goes out of scope.
+                    Function LoadAndRun([string] $scriptName) {
+                        if ($DeploymentAssetLocalOverrides -and $DeploymentAssetLocalOverrides.ContainsKey($MarainServiceName)) {
+                            $ScriptPath = Join-Path $DeploymentAssetLocalOverrides[$MarainServiceName] $scriptName
+                        } else {
+                            $ScriptPath = Join-Path $DeploymentPackageDir $scriptName
+                        }
+                        if (Test-Path $ScriptPath) {
+                            Write-Host " Running $scriptName"
+                            . $ScriptPath
+                            MarainDeployment $ServiceDeploymentContext
+                        }
+                        else {
+                            Write-Verbose "Skipping $scriptName - not found: $ScriptPath"
+                        }
                     }
-                    else {
-                        Write-Verbose "Skipping $scriptName - not found: $ScriptPath"
+
+                    LoadAndRun "Marain-PreDeploy.ps1"
+                    if (-not $AadOnly) {
+                        LoadAndRun "Marain-ArmDeploy.ps1"
+                        LoadAndRun "Marain-PostDeployNoAad.ps1"
+
+                        # This should go away. Now that we've split post-ARM-deployment steps
+                        # clearly into with-AAD and not-AAD, we don't really want this ambiguously
+                        # named script.
+                        LoadAndRun "Marain-PostDeploy.ps1"
                     }
-                }
+                    if (-not $DoNotUseGraph) {
+                        LoadAndRun "Marain-PostDeployAad.ps1"                    
+                    }
 
-                LoadAndRun "Marain-PreDeploy.ps1"
-                if (-not $AadOnly) {
-                    LoadAndRun "Marain-ArmDeploy.ps1"
-                    LoadAndRun "Marain-PostDeployNoAad.ps1"
-
-                    # This should go away. Now that we've split post-ARM-deployment steps
-                    # clearly into with-AAD and not-AAD, we don't really want this ambiguously
-                    # named script.
-                    LoadAndRun "Marain-PostDeploy.ps1"
+                } finally {
+                    Remove-Item -Recurse -Force $TempDir
                 }
-                if (-not $DoNotUseGraph) {
-                    LoadAndRun "Marain-PostDeployAad.ps1"                    
-                }
-
-            } finally {
-                Remove-Item -Recurse -Force $TempDir
             }
         }
     }
+}
+catch {
+    Write-Warning $_.ScriptStackTrace
+    Write-Warning $_.InvocationInfo.PositionMessage
+    Write-Error ("Marain deployment error: `n{0}" -f $_.Exception.Message)
 }

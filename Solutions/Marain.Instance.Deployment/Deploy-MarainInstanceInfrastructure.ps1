@@ -689,16 +689,18 @@ try {
         }
     }
     catch {
-        if ([Environment]::UserInteractive) {
-            & az login --tenant $AadTenantId | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "There was a problem logging into the Azure-cli - check any previous messages"
-            }
-        }
-        elseif ( (Test-Path env:\AZURE_CLIENT_ID) -and (Test-Path env:\AZURE_CLIENT_SECRET) ){
+        # login with the typical environment variables, if available
+        if ( (Test-Path env:\AZURE_CLIENT_ID) -and (Test-Path env:\AZURE_CLIENT_SECRET) ){
             & az login --service-principal -u "$env:AZURE_CLIENT_ID" -p "$env:AZURE_CLIENT_SECRET" --tenant $AadTenantId
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "There was a problem logging into the Azure-cli using environment variable configuration - check any previous messages"
+            }
+        }
+        # Azure pipeline processes seem to report themselves as interactive - at least on linux agents
+        elseif ( [Environment]::UserInteractive -and !(Test-Path env:\SYSTEM_TEAMFOUNDATIONSERVERURI) ) {
+            & az login --tenant $AadTenantId | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "There was a problem logging into the Azure-cli - check any previous messages"
             }
         }
         else {

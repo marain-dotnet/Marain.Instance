@@ -19,6 +19,9 @@ Param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 4
 
+$marainGlobalToolName = 'marain'
+$marainGlobalToolVersion = '0.1.0-cli-as-global-tool.21'
+
 class MarainInstanceDeploymentContext {
     MarainInstanceDeploymentContext(
         [string]$AzureLocation,
@@ -84,7 +87,7 @@ class MarainInstanceDeploymentContext {
     [string]$TenantAdminSecret
     [string]$DeploymentUserObjectId
 
-    [string]$MarainCliPath = (Join-Path $PSScriptRoot "tools/maraincli/marain")
+    [string]$MarainCliPath
 
     [MarainServiceDeploymentContext]CreateServiceDeploymentContext (
         [string]$ServiceApiSuffix,
@@ -732,6 +735,23 @@ try {
         $AadAppIds,
         $DoNotUseGraph)
 
+
+    # ensure dotnet cli is available
+    try {
+        $dotnetCliOutput = & dotnet --version
+    }
+    catch {
+        Write-Error "The dotnet cli is required, but not installed or otherwise not working:`n$_.Message`n$dotnetCliOutput"
+    }
+    
+    # ensure marain cli is available
+    $InstanceDeploymentContext.MarainCliPath = Join-Path $HOME ".dotnet/tools/marain"
+    if ($IsWindows) {
+        $InstanceDeploymentContext.MarainCliPath += '.exe'
+    } 
+    if ( !(Test-Path $InstanceDeploymentContext.MarainCliPath)) {
+        & dotnet tool install -g $marainGlobalToolName --version $marainGlobalToolVersion
+    }    
 
     # Lookup the identity of the deployment user, as we need their objectId to grant keyvault access
     $currentContext = Get-AzContext

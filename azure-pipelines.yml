@@ -51,7 +51,7 @@ stages:
                 Write-Host "*** Files info:"
                 ls -laR
                 Write-Host "*** Vars info:"
-                gci variable:\
+                gci variable:\ | Select Name,Value
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment

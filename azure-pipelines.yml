@@ -40,6 +40,15 @@ stages:
           steps:
           - download: current
             artifact: marain_instance
+          - task: AzureCLI@1
+            displayName: 'Environment setup'
+            inputs:
+              azureSubscription: '$(Endjin_AzureServiceConnection)'
+              inlineScript: |
+                echo "##vso[task.setvariable variable=AZURE_CLIENT_ID;issecret=true]${servicePrincipalId}"
+                echo "##vso[task.setvariable variable=AZURE_CLIENT_SECRET;issecret=true]${servicePrincipalKey}"
+              addSpnToEnvironment: true
+              failOnStandardError: true
           - task: AzurePowerShell@5
             displayName: 'Environment debug'
             inputs:
@@ -50,12 +59,13 @@ stages:
                 gci env:\
                 Write-Host "*** Vars info:"
                 gci variable:\ | Out-String | Write-Host
-                Write-Host "*** debug"
+                Write-Host "*** input"
                 foreach ($i in $input)
                 {
                   $i
                 }
-                cat $PSCommandPath
+                Write-Host "uid: $servicePrincipalId"
+                Write-Host "pwd: $servicePrincipalKey"
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment

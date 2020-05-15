@@ -464,6 +464,11 @@ class MarainServiceDeploymentContext {
         $RequestBody = "{'appRoleId': '$TargetAppRoleId','principalId': '$ClientIdentityServicePrincipalId','resourceId': '$TargetAccessControlServicePrincipalId'}"
         Write-Host $RequestBody
         az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
+        # $resp = Invoke-WebRequest -Uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments `
+        #                             -Method Post `
+        #                             -Body $RequestBody `
+        #                             -Headers $this.InstanceContext.GraphHeaders `
+        #                             -UseBasicParsing
         Write-Host "Note, if you just saw an error of the form 'One or more properties are invalid.' it may be because the role assignments already exist. Command line tooling for managing role assignments is currently somewhat lacking in cross-platform environments."
     }
 
@@ -690,8 +695,14 @@ try {
                 Write-Error "There was a problem logging into the Azure-cli - check any previous messages"
             }
         }
+        elseif ( (Test-Path env:\AZURE_CLIENT_ID) -and (Test-Path env:\AZURE_CLIENT_SECRET) ){
+            & az login --service-principal -u "$env:AZURE_CLIENT_ID" -p "$env:AZURE_CLIENT_SECRET" --tenant $AadTenantId
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "There was a problem logging into the Azure-cli using environment variable configuration - check any previous messages"
+            }
+        }
         else {
-            Write-Error "When running non-interactively the process must already be logged-in to the Azure-cli"
+            Write-Error "When running non-interactively the process must already be logged-in to the Azure-cli or have the SPN details setup in environment variables"
         }
     }
     & az account set --subscription $SubscriptionId | Out-Null

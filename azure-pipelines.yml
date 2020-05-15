@@ -26,24 +26,42 @@ stages:
   displayName: Deploy to 'jd' environment stage
   
   jobs:
-  - job: deploy_jd
+  - deployment: deploy_jd
     displayName: Deploy to 'jd' environment  
     pool:
       vmImage: 'ubuntu-latest'
-    steps:
-    - task: AzurePowerShell@5
-      displayName: 'Deploy Marain environment'
-      inputs:
-        azureSubscription: '$(Endjin_AzureServiceConnection)'
-        ScriptType: 'FilePath'
-        ScriptPath: 'Solutions/Marain.Instance.Deployment/Deploy-MarainInstanceInfrastructure.ps1'
-        ScriptArguments: >
-          -AzureLocation $(Endjin_AzureLocation)
-          -EnvironmentSuffix $(Endjin_EnvironmentSuffix)
-          -AadTenantId $(Endjin_AadTenantId)
-          -SubscriptionId $(Endjin_SubscriptionId)
-          -InstanceManifest $(Build.SourcesDirectory)/Solutions/InstanceManifests/Development.json
-        # -AadAppIds @{"mardevtenancy"="$(Endjin_TenancyAppId)";"mardevoperationscontrol"="$(Endjin_OperationsControlAppId)"} -DoNotUseGraph'
-        preferredAzurePowerShellVersion: '2.6.0'
-        pwsh: true
-        workingDirectory: $(Pipeline.Workspace)/marain_instance
+    environment: marain_jd
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzurePowerShell@5
+            displayName: 'Environment debug'
+            inputs:
+              azureSubscription: '$(Endjin_AzureServiceConnection)'
+              ScriptType: InlineScript
+              Inline: |
+                Write-Host "*** Environment info:"
+                gci env:\
+                Write-Host "*** Files info:"
+                gci
+              preferredAzurePowerShellVersion: '2.6.0'
+              pwsh: true
+              workingDirectory: $(Pipeline.Workspace)/marain_instance
+
+          # - task: AzurePowerShell@5
+          #   displayName: 'Deploy Marain environment'
+          #   inputs:
+          #     azureSubscription: '$(Endjin_AzureServiceConnection)'
+          #     ScriptType: 'FilePath'
+          #     ScriptPath: './Deploy-MarainInstanceInfrastructure.ps1'
+          #     ScriptArguments: >
+          #       -AzureLocation $(Endjin_AzureLocation)
+          #       -EnvironmentSuffix $(Endjin_EnvironmentSuffix)
+          #       -AadTenantId $(Endjin_AadTenantId)
+          #       -SubscriptionId $(Endjin_SubscriptionId)
+          #       -InstanceManifest $(Build.SourcesDirectory)/Solutions/InstanceManifests/Development.json
+          #     # -AadAppIds @{"mardevtenancy"="$(Endjin_TenancyAppId)";"mardevoperationscontrol"="$(Endjin_OperationsControlAppId)"} -DoNotUseGraph'
+          #     preferredAzurePowerShellVersion: '2.6.0'
+          #     pwsh: true
+          #     workingDirectory: Solutions/Marain.Instance.Deployment

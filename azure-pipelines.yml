@@ -48,7 +48,8 @@ stages:
               Inline: |
                 Write-Host "*** Environment info:"
                 gci env:\
-                Get-AzContext | fl
+                Write-Host "*** Files info:"
+                ls
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance
@@ -68,4 +69,4 @@ stages:
                 -DoNotUseGraph
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
-              workingDirectory: Solutions/Marain.Instance.Deployment
+              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment

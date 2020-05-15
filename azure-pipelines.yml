@@ -41,9 +41,10 @@ stages:
           - download: current
             artifact: marain_instance
           - task: AzureCLI@1
-            displayName: 'Environment setup'
+            displayName: 'Azure-cli environment setup'
             inputs:
               azureSubscription: '$(Endjin_AzureServiceConnection)'
+              scriptLocation: inlineScript
               inlineScript: |
                 echo "##vso[task.setvariable variable=AZURE_CLIENT_ID;issecret=true]${servicePrincipalId}"
                 echo "##vso[task.setvariable variable=AZURE_CLIENT_SECRET;issecret=true]${servicePrincipalKey}"

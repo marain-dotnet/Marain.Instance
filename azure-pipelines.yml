@@ -49,23 +49,23 @@ stages:
                 Write-Host "*** Environment info:"
                 gci env:\
                 Write-Host "*** Files info:"
-                ls
+                ls -laR
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
-              workingDirectory: $(Pipeline.Workspace)/marain_instance
+              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
           - task: AzurePowerShell@5
             displayName: 'Deploy Marain environment'
             inputs:
               azureSubscription: '$(Endjin_AzureServiceConnection)'
-              ScriptType: 'FilePath'
-              ScriptPath: './Deploy-MarainInstanceInfrastructure.ps1'
+              ScriptType: FilePath
+              ScriptPath: Deploy-MarainInstanceInfrastructure.ps1
               ScriptArguments: >
                 -AzureLocation $(Endjin_AzureLocation)
                 -EnvironmentSuffix $(Endjin_EnvironmentSuffix)
                 -AadTenantId $(Endjin_AadTenantId)
                 -SubscriptionId $(Endjin_SubscriptionId)
                 -InstanceManifest $(Build.SourcesDirectory)/Solutions/InstanceManifests/Development.json
-                -AadAppIds $(Marain_Aad_App_Ids) `
+                -AadAppIds $(Marain_Aad_App_Ids)
                 -DoNotUseGraph
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true

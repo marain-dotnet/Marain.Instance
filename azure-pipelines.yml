@@ -58,7 +58,7 @@ stages:
             inputs:
               azureSubscription: '$(Endjin_AzureServiceConnection)'
               ScriptType: FilePath
-              ScriptPath: Deploy-MarainInstanceInfrastructure.ps1
+              ScriptPath: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment/Deploy-MarainInstanceInfrastructure.ps1
               ScriptArguments: >
                 -AzureLocation $(Endjin_AzureLocation)
                 -EnvironmentSuffix $(Endjin_EnvironmentSuffix)

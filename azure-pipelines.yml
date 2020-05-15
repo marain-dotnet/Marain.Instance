@@ -11,20 +11,17 @@ trigger:
 stages:
 - stage: Build
   displayName: Build stage
-
   jobs:
   - job: Build
     displayName: Build
     pool:
       vmImage: 'ubuntu-latest'
-
-      steps:
-      - publish: Solutions/Marain.Instance.Deployment
-        artifact: marain_instance
+    steps:
+    - publish: $(Build.SourcesDirectory)/Solutions
+      artifact: marain_instance
     
 - stage: deploy_to_jd
   displayName: Deploy to 'jd' environment stage
-  
   jobs:
   - deployment: deploy_jd
     displayName: Deploy to 'jd' environment  
@@ -35,6 +32,8 @@ stages:
       runOnce:
         deploy:
           steps:
+          - download: current
+            artifact: marain_instance
           - task: AzurePowerShell@5
             displayName: 'Environment debug'
             inputs:
@@ -48,7 +47,6 @@ stages:
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance
-
           # - task: AzurePowerShell@5
           #   displayName: 'Deploy Marain environment'
           #   inputs:

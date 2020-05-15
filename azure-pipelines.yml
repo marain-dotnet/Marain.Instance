@@ -21,6 +21,12 @@ stages:
       artifact: marain_instance
     
 - stage: deploy_to_jd
+  variables:
+    Endjin_AzureLocation: uksouth
+    Endjin_SubscriptionId: 13821a69-41a3-43ab-9577-1519963ea474
+    Endjin_AzureServiceConnection: jamesdawson-mpn-subscription
+    Endjin_EnvironmentSuffix: jd
+    Marain_Aad_App_Ids: "@{marjdtenancy='f4a33e95-36b0-4354-94d3-ad29266e1e79'; marjdoperationscontrol='c7f5ff45-f37f-440a-b84d-8ea71fa79062'}"
   displayName: Deploy to 'jd' environment stage
   jobs:
   - deployment: deploy_jd
@@ -42,8 +48,6 @@ stages:
               Inline: |
                 Write-Host "*** Environment info:"
                 gci env:\
-                Write-Host "*** Files info:"
-                gci
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance

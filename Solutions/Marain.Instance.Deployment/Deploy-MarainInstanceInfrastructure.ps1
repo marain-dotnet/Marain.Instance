@@ -51,7 +51,8 @@ class MarainInstanceDeploymentContext {
             $AzContext = Get-AzContext
             $AadGraphApiResourceId = "https://graph.windows.net/"
 
-            $GraphToken = $AzContext.TokenCache.ReadItems() | Where-Object { $_.TenantId -eq $this.TenantId -and $_.Resource -eq $AadGraphApiResourceId }
+            # service principals with a graph tokens appear unassociated with a tenant
+            $GraphToken = $AzContext.TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
             if ($GraphToken) {
                 $AuthToken = $GraphToken.AccessToken
                 $AuthHeaderValue = "Bearer $AuthToken"
@@ -662,7 +663,7 @@ try {
         Write-Error "Az PowerShell modules are not installed - they can be installed using 'Install-Module Az -AllowClobber -Force'"
     }
 
-    # Ensure PowerShell Az is logged-in with graph API access, if available 
+    # Ensure PowerShell Az is logged-in
     if ($null -eq (Get-AzContext) -and [Environment]::UserInteractive) {
         Connect-AzAccount -Subscription $SubscriptionId -Tenant $AadTenantId
     }
@@ -713,7 +714,9 @@ try {
     # perform an arbitrary AAD operation to force getting a graph api token
     $AadGraphApiResourceId = "https://graph.windows.net/"
     Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction SilentlyContinue | Out-Null
-    $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { $_.TenantId -eq $AadTenantId -and $_.Resource -eq $AadGraphApiResourceId }
+    Write-Host ("TokenInfo:`n{0}" -f ((Get-AzContext).TokenCache.ReadItems() | select ClientId,Resource,TenantId | fl | Out-String))
+    # service principals with a graph tokens appear unassociated with a tenant
+    $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $AadTenantId) -and $_.Resource -eq $AadGraphApiResourceId }
     if (!$GraphToken) {
         Write-Warning "No graph token available. AAD operations will not be performed."
         $DoNotUseGraph = $True

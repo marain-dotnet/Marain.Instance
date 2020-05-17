@@ -1,11 +1,12 @@
 {
   "services": {
     "Marain.Tenancy": {
-      "omit": true,
-      "release": "0.3.0-powershell-deploy.5"
+      "omit": false,
+      "release": "0.3.0-powershell-deploy.25"
     },
     "Marain.Operations": {
-      "release": "0.9.0-powershell-deploy.13"
+      "omit": false,
+      "release": "0.9.0-powershell-deploy.40"
     },
     "Marain.Workflow": {
       "omit": true,

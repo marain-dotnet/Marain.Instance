@@ -61,6 +61,12 @@ stages:
                 gci env:\ | ft -AutoSize | Out-String | Write-Host
                 Write-Host "*** Vars info:"
                 gci variable:\ | ft -AutoSize | Out-String | Write-Host
+                Write-Host "*** SP info"
+                (Get-AzContext).TokenCache.ReadItems() | select Resource
+                Write-Host "---"
+                Get-AzADServicePrincipal -DisplayName "scripting-spn"
+                Write-Host "---"
+                (Get-AzContext).TokenCache.ReadItems() | select Resource
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
@@ -78,8 +84,6 @@ stages:
                       -AadTenantId $(Endjin_AadTenantId) `
                       -SubscriptionId $(Endjin_SubscriptionId) `
                       -InstanceManifest ../InstanceManifests/$(Marain_Instance_Type).json
-              # -AadAppIds $(Marain_Aad_App_Ids) `
-              # -DoNotUseGraph
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment

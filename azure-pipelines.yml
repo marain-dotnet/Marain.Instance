@@ -24,9 +24,9 @@ stages:
   variables:
     Endjin_AzureLocation: uksouth
     Endjin_SubscriptionId: 13821a69-41a3-43ab-9577-1519963ea474
-    Endjin_AzureServiceConnection: jamesdawson-mpn-subscription
+    Endjin_AzureServiceConnection: marjd-ado-spn
     Endjin_EnvironmentSuffix: jd
-    Marain_Aad_App_Ids: "@{marjdtenancy='f4a33e95-36b0-4354-94d3-ad29266e1e79'; marjdoperationscontrol='c7f5ff45-f37f-440a-b84d-8ea71fa79062'}"
+    # Marain_Aad_App_Ids: "@{marjdtenancy='f4a33e95-36b0-4354-94d3-ad29266e1e79'; marjdoperationscontrol='c7f5ff45-f37f-440a-b84d-8ea71fa79062'}"
     Marain_Instance_Type: Development
   displayName: Deploy to 'jd' environment stage
   jobs:
@@ -77,9 +77,9 @@ stages:
                       -EnvironmentSuffix $(Endjin_EnvironmentSuffix) `
                       -AadTenantId $(Endjin_AadTenantId) `
                       -SubscriptionId $(Endjin_SubscriptionId) `
-                      -InstanceManifest ../InstanceManifests/$(Marain_Instance_Type).json `
-                      -AadAppIds $(Marain_Aad_App_Ids) `
-                      -DoNotUseGraph
+                      -InstanceManifest ../InstanceManifests/$(Marain_Instance_Type).json
+              # -AadAppIds $(Marain_Aad_App_Ids) `
+              # -DoNotUseGraph
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment

@@ -810,6 +810,9 @@ try {
 
         if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq $MarainServiceName)) {
             $ServiceManifestEntry = $InstanceManifest.services.$MarainServiceName
+            if ($null -ne $ServiceManifestEntry.omit -and $ServiceManifestEntry.omit) {
+                continue
+            }
             Write-Host "Starting infrastructure deployment for $MarainServiceName"
             $GitHubProject = $MarainService.gitHubProject
             Write-Host " GitHub project $GitHubProject"
@@ -892,3 +895,5 @@ catch {
     Write-Warning $_.InvocationInfo.PositionMessage
     Write-Error ("Marain deployment error: `n{0}" -f $_.Exception.Message)
 }
+
+Write-Host -f green "Marain deployment complete."

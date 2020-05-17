@@ -433,9 +433,10 @@ class MarainServiceDeploymentContext {
         $ClientAppNameWithSuffix = $this.AppName + $ClientAppSuffix
 
         [MarainAppService]$ClientAppService = $this.AppServices[$ClientAppNameWithSuffix]
-        $ClientIdentityServicePrincipalId = $ClientAppService.ServicePrincipalId
-        
-        if (-not $ClientIdentityServicePrincipalId) {
+        if ($null -ne $ClientAppService) {
+            $ClientIdentityServicePrincipalId = $ClientAppService.ServicePrincipalId
+        }
+        else {
             # When running in AAD-only mode, we won't yet have the service principle, because
             # that's something that comes out of the ARM deployment, so we have to look it up.
 
@@ -764,7 +765,7 @@ try {
     } 
     if ( !(Test-Path $InstanceDeploymentContext.MarainCliPath)) {
         & dotnet tool install -g $marainGlobalToolName --version $marainGlobalToolVersion
-    }    
+    }
 
     # Lookup the identity of the deployment user, as we need their objectId to grant keyvault access
     $currentContext = Get-AzContext

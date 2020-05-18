@@ -714,7 +714,6 @@ try {
     # perform an arbitrary AAD operation to force getting a graph api token
     $AadGraphApiResourceId = "https://graph.windows.net/"
     Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction SilentlyContinue | Out-Null
-    Write-Host ("TokenInfo:`n{0}" -f ((Get-AzContext).TokenCache.ReadItems() | select ClientId,Resource,TenantId | fl | Out-String))
     # service principals with a graph tokens appear unassociated with a tenant
     $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $AadTenantId) -and $_.Resource -eq $AadGraphApiResourceId }
     if (!$GraphToken) {

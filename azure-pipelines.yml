@@ -19,14 +19,14 @@ stages:
     steps:
     - publish: $(Build.SourcesDirectory)/Solutions
       artifact: marain_instance
-    
+
+
 - stage: deploy_to_jd
   variables:
     Endjin_AzureLocation: uksouth
     Endjin_SubscriptionId: 13821a69-41a3-43ab-9577-1519963ea474
     Endjin_AzureServiceConnection: marjd-ado-spn
     Endjin_EnvironmentSuffix: jd
-    # Marain_Aad_App_Ids: "@{marjdtenancy='f4a33e95-36b0-4354-94d3-ad29266e1e79'; marjdoperationscontrol='c7f5ff45-f37f-440a-b84d-8ea71fa79062'}"
     Marain_Instance_Type: Development
   displayName: Deploy to 'jd' environment stage
   jobs:
@@ -35,6 +35,68 @@ stages:
     pool:
       vmImage: 'ubuntu-latest'
     environment: marain_jd
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: marain_instance
+          - task: AzureCLI@1
+            displayName: 'Azure-cli environment setup'
+            inputs:
+              azureSubscription: '$(Endjin_AzureServiceConnection)'
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "##vso[task.setvariable variable=AZURE_CLIENT_ID;issecret=true]${servicePrincipalId}"
+                echo "##vso[task.setvariable variable=AZURE_CLIENT_SECRET;issecret=true]${servicePrincipalKey}"
+              addSpnToEnvironment: true
+              failOnStandardError: true
+          - task: AzurePowerShell@5
+            displayName: 'Environment debug'
+            inputs:
+              azureSubscription: '$(Endjin_AzureServiceConnection)'
+              ScriptType: InlineScript
+              Inline: |
+                Write-Host "*** Environment info:"
+                gci env:\ | ft -AutoSize | Out-String | Write-Host
+                Write-Host "*** Vars info:"
+                gci variable:\ | ft -AutoSize | Out-String | Write-Host
+              preferredAzurePowerShellVersion: '2.6.0'
+              pwsh: true
+              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
+          - task: AzurePowerShell@5
+            displayName: 'Deploy Marain environment'
+            inputs:
+              azureSubscription: '$(Endjin_AzureServiceConnection)'
+              ScriptType: InlineScript
+              Inline: |
+                $env:AZURE_CLIENT_ID = "$(AZURE_CLIENT_ID)"
+                $env:AZURE_CLIENT_SECRET = "$(AZURE_CLIENT_SECRET)"
+                ./Deploy-MarainInstanceInfrastructure.ps1 `
+                      -AzureLocation $(Endjin_AzureLocation) `
+                      -EnvironmentSuffix $(Endjin_EnvironmentSuffix) `
+                      -AadTenantId $(Endjin_AadTenantId) `
+                      -SubscriptionId $(Endjin_SubscriptionId) `
+                      -InstanceManifest ../InstanceManifests/$(Marain_Instance_Type).json
+              preferredAzurePowerShellVersion: '2.6.0'
+              pwsh: true
+              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
+
+
+- stage: deploy_to_endjin_dev
+  variables:
+    Endjin_AzureLocation: northeurope
+    Endjin_SubscriptionId: 98333d29-7302-4f93-a51d-70c49ca7e180
+    Endjin_AzureServiceConnection: maraindev-endjindev-ado-spn
+    Endjin_EnvironmentSuffix: dev
+    Marain_Instance_Type: Development
+  displayName: Deploy to 'endjin-dev' environment stage
+  jobs:
+  - deployment: deploy_endjin_dev
+    displayName: Deploy to 'endjin-dev' environment  
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: marain_endjin_dev
     strategy:
       runOnce:
         deploy:

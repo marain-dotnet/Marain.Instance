@@ -171,7 +171,7 @@ function Register-AdoServiceConnection {
     $adoUrl = "https://dev.azure.com/{0}" -f $adoOrg
     $adoArgs = @(
         "--name $name"
-        "--azure-rm-service-principal-id {0}" -f $newSp.appId
+        "--azure-rm-service-principal-id {0}" -f $existingSp.appId
         "--azure-rm-subscription-id {0}" -f $azureAccount.id
         "--azure-rm-subscription-name `"{0}`"" -f $azureAccount.name
         "--azure-rm-tenant-id {0}" -f $newSp.tenant

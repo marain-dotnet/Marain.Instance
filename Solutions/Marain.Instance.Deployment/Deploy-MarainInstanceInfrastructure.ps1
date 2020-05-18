@@ -465,13 +465,29 @@ class MarainServiceDeploymentContext {
         Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         $RequestBody = "{'appRoleId': '$TargetAppRoleId','principalId': '$ClientIdentityServicePrincipalId','resourceId': '$TargetAccessControlServicePrincipalId'}"
         Write-Host $RequestBody
-        az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
-        # $resp = Invoke-WebRequest -Uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments `
-        #                             -Method Post `
-        #                             -Body $RequestBody `
-        #                             -Headers $this.InstanceContext.GraphHeaders `
-        #                             -UseBasicParsing
-        Write-Host "Note, if you just saw an error of the form 'One or more properties are invalid.' it may be because the role assignments already exist. Command line tooling for managing role assignments is currently somewhat lacking in cross-platform environments."
+
+        # Trying to assign app permissions too soon after deployment causes spurious 'internal server' errors
+        $retries = 1
+        $maxRetries = 5
+        $baseDelay = 5
+        while ($retries -le $maxRetries) {
+            # crude back-off mechanism
+            $delay = $retries * $baseDelay
+            Write-Host ("Waiting {0} seconds... " -f $delay)
+            Start-Sleep -Seconds $delay
+            $resp = (az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json")
+            if ($LASTEXITCODE -ne 0) {
+                $retries++
+                Write-Warning ("Attempt {0}/{1} failed:`n{2}" -f $retries, $maxRetries, $resp)
+            }
+            else {
+                Write-Host "Note, if you just saw an error of the form 'One or more properties are invalid.' it may be because the role assignments already exist. Command line tooling for managing role assignments is currently somewhat lacking in cross-platform environments."
+                break
+            }
+        }
+        if ($retries -eq $maxRetries) {
+            Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId - retry attempts exceeded, check earlier log entries"
+        }
     }
 
 

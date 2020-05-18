@@ -41,16 +41,7 @@ stages:
           steps:
           - download: current
             artifact: marain_instance
-          - task: AzureCLI@1
-            displayName: 'Azure-cli environment setup'
-            inputs:
-              azureSubscription: '$(Endjin_AzureServiceConnection)'
-              scriptLocation: inlineScript
-              inlineScript: |
-                echo "##vso[task.setvariable variable=AZURE_CLIENT_ID;issecret=true]${servicePrincipalId}"
-                echo "##vso[task.setvariable variable=AZURE_CLIENT_SECRET;issecret=true]${servicePrincipalKey}"
-              addSpnToEnvironment: true
-              failOnStandardError: true
+
           - task: AzurePowerShell@5
             displayName: 'Environment debug'
             inputs:
@@ -63,23 +54,15 @@ stages:
                 gci variable:\ | ft -AutoSize | Out-String | Write-Host
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
-              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
-          - task: AzurePowerShell@5
-            displayName: 'Deploy Marain environment'
-            inputs:
-              azureSubscription: '$(Endjin_AzureServiceConnection)'
-              ScriptType: InlineScript
-              Inline: |
-                $env:AZURE_CLIENT_ID = "$(AZURE_CLIENT_ID)"
-                $env:AZURE_CLIENT_SECRET = "$(AZURE_CLIENT_SECRET)"
-                ./Deploy-MarainInstanceInfrastructure.ps1 `
-                      -AzureLocation $(Endjin_AzureLocation) `
-                      -EnvironmentSuffix $(Endjin_EnvironmentSuffix) `
-                      -AadTenantId $(Endjin_AadTenantId) `
-                      -SubscriptionId $(Endjin_SubscriptionId) `
-                      -InstanceManifest ../InstanceManifests/$(Marain_Instance_Type).json
-              preferredAzurePowerShellVersion: '2.6.0'
-              pwsh: true
+
+          - template: azurepipeline-templates/deploy-marain-instance.yml
+            parameters:
+              azureServiceConnection: $(Endjin_AzureServiceConnection)
+              azureSubscriptionId: $(Endjin_SubscriptionId)
+              azureTenantId: $(Endjin_AadTenantId)
+              azureLocation: $(Endjin_AzureLocation)
+              marainEnvironmentSuffix: $(Endjin_EnvironmentSuffix)
+              marainInstanceType: $(Marain_Instance_Type)
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
 
 
@@ -103,43 +86,13 @@ stages:
           steps:
           - download: current
             artifact: marain_instance
-          - task: AzureCLI@1
-            displayName: 'Azure-cli environment setup'
-            inputs:
-              azureSubscription: '$(Endjin_AzureServiceConnection)'
-              scriptLocation: inlineScript
-              inlineScript: |
-                echo "##vso[task.setvariable variable=AZURE_CLIENT_ID;issecret=true]${servicePrincipalId}"
-                echo "##vso[task.setvariable variable=AZURE_CLIENT_SECRET;issecret=true]${servicePrincipalKey}"
-              addSpnToEnvironment: true
-              failOnStandardError: true
-          - task: AzurePowerShell@5
-            displayName: 'Environment debug'
-            inputs:
-              azureSubscription: '$(Endjin_AzureServiceConnection)'
-              ScriptType: InlineScript
-              Inline: |
-                Write-Host "*** Environment info:"
-                gci env:\ | ft -AutoSize | Out-String | Write-Host
-                Write-Host "*** Vars info:"
-                gci variable:\ | ft -AutoSize | Out-String | Write-Host
-              preferredAzurePowerShellVersion: '2.6.0'
-              pwsh: true
-              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
-          - task: AzurePowerShell@5
-            displayName: 'Deploy Marain environment'
-            inputs:
-              azureSubscription: '$(Endjin_AzureServiceConnection)'
-              ScriptType: InlineScript
-              Inline: |
-                $env:AZURE_CLIENT_ID = "$(AZURE_CLIENT_ID)"
-                $env:AZURE_CLIENT_SECRET = "$(AZURE_CLIENT_SECRET)"
-                ./Deploy-MarainInstanceInfrastructure.ps1 `
-                      -AzureLocation $(Endjin_AzureLocation) `
-                      -EnvironmentSuffix $(Endjin_EnvironmentSuffix) `
-                      -AadTenantId $(Endjin_AadTenantId) `
-                      -SubscriptionId $(Endjin_SubscriptionId) `
-                      -InstanceManifest ../InstanceManifests/$(Marain_Instance_Type).json
-              preferredAzurePowerShellVersion: '2.6.0'
-              pwsh: true
+
+          - template: azurepipeline-templates/deploy-marain-instance.yml
+            parameters:
+              azureServiceConnection: $(Endjin_AzureServiceConnection)
+              azureSubscriptionId: $(Endjin_SubscriptionId)
+              azureTenantId: $(Endjin_AadTenantId)
+              azureLocation: $(Endjin_AzureLocation)
+              marainEnvironmentSuffix: $(Endjin_EnvironmentSuffix)
+              marainInstanceType: $(Marain_Instance_Type)
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment

@@ -473,7 +473,7 @@ class MarainServiceDeploymentContext {
 
         # Test AzureAD.Standard.Preview module
         # install AzureAD Standard (preview) module
-        if ( !(Get-PackageSource -Name 'Posh Test Gallery') ) {
+        if ( !(Get-PackageSource -Name 'Posh Test Gallery' -ErrorAction SilentlyContinue) ) {
             Register-PackageSource -Trusted -ProviderName 'PowerShellGet' -Name 'Posh Test Gallery' -Location 'https://www.poshtestgallery.com/api/v2/'
         }
         if ( !(Get-Module 'AzureAD.Standard.Preview' -ListAvailable -ErrorAction SilentlyContinue) ) {

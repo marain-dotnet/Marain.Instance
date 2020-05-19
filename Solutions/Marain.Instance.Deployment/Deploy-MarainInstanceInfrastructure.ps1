@@ -473,8 +473,12 @@ class MarainServiceDeploymentContext {
 
         # Test AzureAD.Standard.Preview module
         # install AzureAD Standard (preview) module
-        Register-PackageSource -Trusted -ProviderName 'PowerShellGet' -Name 'Posh Test Gallery' -Location 'https://www.poshtestgallery.com/api/v2/'
-        Install-Module -Name AzureAD.Standard.Preview -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber 
+        if ( !(Get-PackageSource -Name 'Posh Test Gallery') ) {
+            Register-PackageSource -Trusted -ProviderName 'PowerShellGet' -Name 'Posh Test Gallery' -Location 'https://www.poshtestgallery.com/api/v2/'
+        }
+        if ( !(Get-Module 'AzureAD.Standard.Preview' -ListAvailable -ErrorAction SilentlyContinue) ) {
+            Install-Module -Name AzureAD.Standard.Preview -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber
+        }
         $aadModule = Get-Module -ListAvailable AzureAD.Standard.Preview
 
         $ctx = Get-AzContext

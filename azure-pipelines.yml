@@ -52,6 +52,8 @@ stages:
                 gci env:\ | ft -AutoSize | Out-String | Write-Host
                 Write-Host "*** Vars info:"
                 gci variable:\ | ft -AutoSize | Out-String | Write-Host
+                Write-Host "*** Module info:"
+                Get-Module -ListAvailable | Select Name,Version,Path
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
 

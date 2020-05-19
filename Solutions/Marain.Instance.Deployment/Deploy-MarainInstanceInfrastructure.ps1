@@ -495,7 +495,7 @@ class MarainServiceDeploymentContext {
         )
 
         Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-        Write-Host "DEBUG:`n{0}`n******" -f ($script -join "`n")
+        Write-Host ("DEBUG:`n{0}`n******" -f ($script -join "`n"))
         pwsh -c ([scriptblock]::Create($script -join '; '))
     }
 

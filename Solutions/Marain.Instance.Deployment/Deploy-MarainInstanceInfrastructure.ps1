@@ -466,10 +466,29 @@ class MarainServiceDeploymentContext {
         $RequestBody = "{'appRoleId': '$TargetAppRoleId','principalId': '$ClientIdentityServicePrincipalId','resourceId': '$TargetAccessControlServicePrincipalId'}"
         Write-Host $RequestBody
         
-        az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId"
-        }
+        # az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
+        # if ($LASTEXITCODE -ne 0) {
+        #     Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId"
+        # }
+
+        # Test AzureAD.Standard.Preview module
+        # install AzureAD Standard (preview) module
+        Register-PackageSource -Trusted -ProviderName 'PowerShellGet' -Name 'Posh Test Gallery' -Location 'https://www.poshtestgallery.com/api/v2/'
+        Install-Module -Name AzureAD.Standard.Preview -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber 
+        $aadModule = Get-Module -ListAvailable AzureAD.Standard.Preview
+
+        $ctx = Get-AzContext
+        $AadGraphApiResourceId = "https://graph.windows.net/"
+        $GraphToken = $ctx.TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.InstanceContext.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
+        # we need to run the AzureAD module in a different process due to assembly mismatches
+        $script = @(
+            "Import-Module $($aadModule.Path)"
+            "Connect-AzureAD -AccountId $($ctx.Subscription) -TenantId $($ctx.Tenant) -AadAccessToken $($GraphToken.AccessToken) | Out-Null"
+            "`$existing = Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId | Where { `$_.PrincipalId -eq '$ClientIdentityServicePrincipalId' -and `$_.ResourceId -eq '$TargetAppRoleId' }"
+            "if (!`$existing) { Write-Host '`tRole assignment required...'; New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId }"
+        )
+        Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+        pwsh -c ([scriptblock]::Create($script -join '; '))
     }
 
 

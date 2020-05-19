@@ -489,12 +489,13 @@ class MarainServiceDeploymentContext {
             "Import-Module $($aadModule.Path)"
             "Connect-AzureAD -AccountId $($ctx.Subscription) -TenantId $($ctx.Tenant) -AadAccessToken $($GraphToken.AccessToken)"
             "Write-Host 'DEBUG: Client=$ClientIdentityServicePrincipalId, Target=$TargetAccessControlServicePrincipalId, Role=$TargetAppRoleId'"
-            "`$existing = Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId | Where { `$_.PrincipalId -eq '$ClientIdentityServicePrincipalId' -and `$_.Id -eq '$TargetAppRoleId' }"
+            "`$existing = (Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId | Where { `$_.PrincipalId -eq '$ClientIdentityServicePrincipalId' -and `$_.Id -eq '$TargetAppRoleId' })"
             "Write-Host 'DEBUG:'; `$existing"
             "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId }"
         )
-        Write-Host "DEBUG: $($script -join '; ')"
+
         Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+        Write-Host "DEBUG:`n{0}`n******" -f ($script -join "`n")
         pwsh -c ([scriptblock]::Create($script -join '; '))
     }
 

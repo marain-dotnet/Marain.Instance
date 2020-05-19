@@ -470,7 +470,7 @@ class MarainServiceDeploymentContext {
         Import-Module $aadModule.Path -Verbose
 
         $AadGraphApiResourceId = "https://graph.windows.net/"
-        $GraphToken = $AzContext.TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.InstanceContext.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
+        $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.InstanceContext.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
         Connect-AzureAD -AccountId $this.InstanceContext.SubscriptionId -TenantId $this.InstanceContext.TenantId -AadAccessToken $GraphToken.AccessToken
 
         Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"

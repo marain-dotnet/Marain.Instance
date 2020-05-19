@@ -488,17 +488,12 @@ class MarainServiceDeploymentContext {
         $script = @(
             "Import-Module $($aadModule.Path)"
             "Connect-AzureAD -AccountId $($ctx.Subscription) -TenantId $($ctx.Tenant) -AadAccessToken $($GraphToken.AccessToken)"
-            "Write-Host ('Inner-PID: {0}' -f `$PID)"
-            "Write-Host 'DEBUG: Client=$ClientIdentityServicePrincipalId, Target=$TargetAccessControlServicePrincipalId, Role=$TargetAppRoleId'"
-            "Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId"
             "`$existing = (Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId | Where { `$_.PrincipalId -eq '$ClientIdentityServicePrincipalId' -and `$_.Id -eq '$TargetAppRoleId' })"
             "Write-Host ('DEBUG: >{0}<' -f `$existing)"
-            "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId }"
+            "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; try { New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId -ErrorAction Stop } catch { Write-Warning `$_.Message } }"
         )
         Write-Host ("Outer-PID: {0}" -f (Get-Item variable:\PID).Value)
         Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-        Write-Host ("DEBUG:`n{0}`n******" -f ($script -join "`n"))
-        
         $sb = [scriptblock]::Create($script -join "; ")
         pwsh -c $sb
     }

@@ -462,49 +462,14 @@ class MarainServiceDeploymentContext {
         $TargetSp = Get-AzADServicePrincipal -ApplicationId $TargetAppId
         $TargetAccessControlServicePrincipalId = $TargetSp.Id
 
-        # Test AzureAD.Standard.Preview module
-        # install AzureAD Standard (preview) module
-        Register-PackageSource -Trusted -ProviderName 'PowerShellGet' -Name 'Posh Test Gallery' -Location 'https://www.poshtestgallery.com/api/v2/'
-        Install-Module -Name AzureAD.Standard.Preview -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber
-        $aadModule = Get-Module -ListAvailable AzureAD.Standard.Preview
-        Import-Module $aadModule.Path -Verbose
-
-        $AadGraphApiResourceId = "https://graph.windows.net/"
-        $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.InstanceContext.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
-        Connect-AzureAD -AccountId $this.InstanceContext.SubscriptionId -TenantId $this.InstanceContext.TenantId -AadAccessToken $GraphToken.AccessToken
-
         Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-        New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId `
-                                            -PrincipalId $ClientIdentityServicePrincipalId `
-                                            -ResourceId $TargetAccessControlServicePrincipalId `
-                                            -Id $TargetAppRoleId
-
-        # $RequestBody = "{'appRoleId': '$TargetAppRoleId','principalId': '$ClientIdentityServicePrincipalId','resourceId': '$TargetAccessControlServicePrincipalId'}"
-        # Write-Host $RequestBody
-
-        # # Trying to assign app permissions too soon after deployment causes spurious 'internal server' errors
-        # $retries = 1
-        # $maxRetries = 10
-        # $baseDelay = 10
-        # while ($retries -le $maxRetries) {
-        #     # crude back-off mechanism
-        #     $delay = $retries * $baseDelay
-        #     Write-Host ("Waiting {0} seconds... " -f $delay)
-        #     Start-Sleep -Seconds $delay
-        #     # az rest --method patch --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
-        #     az rest --method patch --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignedTo --body $RequestBody --headers "Content-Type=application/json"
-        #     if ($LASTEXITCODE -ne 0) {
-        #         Write-Warning ("Attempt {0}/{1} failed - see above error message" -f $retries, $maxRetries)
-        #         $retries++
-        #     }
-        #     else {
-        #         Write-Host "Note, if you just saw an error of the form 'One or more properties are invalid.' it may be because the role assignments already exist. Command line tooling for managing role assignments is currently somewhat lacking in cross-platform environments."
-        #         break
-        #     }
-        # }
-        # if ($retries -ge $maxRetries) {
-        #     Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId - retry attempts exceeded, check earlier log entries"
-        # }
+        $RequestBody = "{'appRoleId': '$TargetAppRoleId','principalId': '$ClientIdentityServicePrincipalId','resourceId': '$TargetAccessControlServicePrincipalId'}"
+        Write-Host $RequestBody
+        
+        az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId"
+        }
     }
 
 

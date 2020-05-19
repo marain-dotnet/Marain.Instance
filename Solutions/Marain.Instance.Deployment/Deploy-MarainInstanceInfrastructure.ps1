@@ -493,6 +493,7 @@ class MarainServiceDeploymentContext {
             "Write-Host 'DEBUG:'; `$existing"
             "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId }"
         )
+        Write-Host "DEBUG: $($script -join '; ')"
         Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         pwsh -c ([scriptblock]::Create($script -join '; '))
     }

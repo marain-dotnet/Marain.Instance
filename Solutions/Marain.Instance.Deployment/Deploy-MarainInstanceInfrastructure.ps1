@@ -487,9 +487,11 @@ class MarainServiceDeploymentContext {
         # we need to run the AzureAD module in a different process due to assembly mismatches
         $script = @(
             "Import-Module $($aadModule.Path)"
-            "Connect-AzureAD -AccountId $($ctx.Subscription) -TenantId $($ctx.Tenant) -AadAccessToken $($GraphToken.AccessToken) | Out-Null"
+            "Connect-AzureAD -AccountId $($ctx.Subscription) -TenantId $($ctx.Tenant) -AadAccessToken $($GraphToken.AccessToken)"
+            "Write-Host 'DEBUG: Client=$ClientIdentityServicePrincipalId, Target=$TargetAccessControlServicePrincipalId, Role=$TargetAppRoleId'"
             "`$existing = Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId | Where { `$_.PrincipalId -eq '$ClientIdentityServicePrincipalId' -and `$_.Id -eq '$TargetAppRoleId' }"
-            "if (!`$existing) { Write-Host '`tRole assignment required...'; New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId }"
+            "Write-Host 'DEBUG:'; `$existing"
+            "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId }"
         )
         Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         pwsh -c ([scriptblock]::Create($script -join '; '))

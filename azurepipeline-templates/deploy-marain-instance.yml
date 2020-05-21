@@ -34,7 +34,7 @@ steps:
             -AadTenantId ${{ parameters.azureTenantId }} `
             -SubscriptionId ${{ parameters.azureSubscriptionId }} `
             -InstanceManifest ../InstanceManifests/${{ parameters.marainInstanceType }}.json `
-            -Prefix ${{ marainResourcePrefix }}
+            -Prefix ${{ parameters.marainResourcePrefix }}
     preferredAzurePowerShellVersion: '2.6.0'
     pwsh: true
     workingDirectory: ${{ parameters.workingDirectory }}

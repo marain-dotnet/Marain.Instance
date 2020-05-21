@@ -4,9 +4,12 @@
 
 Proposed
 
+
 ## Context
 
 This ADR defines an approach for a least-privilege Azure DevOps Pipeline that supports the automated deployment, teardown and re-deployment of a complete Marain instance.
+
+The challenge here is to balance the varied benefits of having a self-sufficient, repeatable pipeline with the need for adequate security controls to minimise the risk of the pipeline becoming the source of a security incident.
 
 Such a deployment pipeline needs to be able to perform the following actions:
 
@@ -31,12 +34,37 @@ This is commonly handled in one of three ways:
 * running a subset of the main pipeline, under a different identity which does have the necessary permissions, such that only  the tasks that require the elevate privileges are run
 * an out-of-band process whereby an individual with the appropriate permissions executes the necessary steps (either manually or using a script)
 
-The challenge here is to balance the varied benefits of having a self-sufficient, repeatable pipeline with the need for adequate security controls to minimise the risk of the pipeline becoming the source of a security incident.
+>NOTE: This functionality may have to run multiple times in the case of on-going application permission management.
 
 
 ## Decision
 
+In order to ensure the principle of least privilege, whilst still enabling a fully-automated process the following steps are proposed.
 
+1. Each Marain environment has its own dedicated Azure AD identity that the pipeline executes under
+1. Each Azure subscription that hosts a Marain environment requires a custom AzureRM role, that grants:
+    * `MicrosoftAuthorization/RoleAssignment/*` (Read/Write/Delete)
+1. Each identity is granted the following permissions:
+    * Subscription scope:
+        * `Contributor`
+        * The custom role for the associated subscription
+    * Azure Active Directory Graph scope:
+        * `Directory.Read.All`
+        * `Application.ReadWrite.Owned`
+1. AzureAD administrators get approval oversight of the AzureAD Graph permissions, via the 'admin consent' mechanism
+1. An Azure Pipelines service connection is created for each of the above identities
+1. The owner of the Azure Pipelines service connection gets approval oversight of any pipelines wishing to use it
+1. By using YAML-based pipelines, any changes can be subjected to review via a Pull Request process
 
 
 ## Consequences
+
+A pipeline is able to perform all the required automation tasks, with the following security controls in-place:
+
+1. All pipelines wishing to use this identity require initial approval
+1. A pipeline will not be able to access AzureAD application identities that it has not created
+    * This mitigates a 'dev' pipeline inadvertently changing an identity used in 'prod' (for example)
+    * NOTE: This means that all AzureAD application identities *must* be created via the pipeline
+1. A pipeline will have its ability to make role assignment changes constrained to its target subscription
+    * If required, further auditing or a security policy could be implemented to catch 'unexpected' role assignment operations
+1. All actions associated with a pipeline will be performed by a single identity, which provides a clear audit trail

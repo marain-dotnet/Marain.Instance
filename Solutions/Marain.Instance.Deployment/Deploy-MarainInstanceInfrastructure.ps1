@@ -13,7 +13,8 @@ Param(
     [switch] $DoNotUseGraph, # Used for debugging to simulate the lack of access to the graph we get in ADO
     [string] $ResourceGroupNameRoot = "Marain",
     [string] $SingleServiceToDeploy, # Normally we deploy everything, but set this to deploy just one particular service's infrastructure
-    [Hashtable] $DeploymentAssetLocalOverrides = @{}
+    [Hashtable] $DeploymentAssetLocalOverrides = @{},
+    [string] $Prefix = "mar"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -769,7 +770,7 @@ try {
     $InstanceDeploymentContext = [MarainInstanceDeploymentContext]::new(
         $AzureLocation,
         $EnvironmentSuffix,
-        "mar",
+        $Prefix,
         $AadTenantId,
         $SubscriptionId,
         $AadAppIds,

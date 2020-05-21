@@ -28,6 +28,7 @@ stages:
     Endjin_AzureServiceConnection: marjd-ado-spn
     Endjin_EnvironmentSuffix: jd
     Marain_Instance_Type: Development
+    Marain_ResourcePrefix: marain
   displayName: Deploy to 'jd' environment stage
   jobs:
   - deployment: deploy_jd
@@ -65,6 +66,7 @@ stages:
               azureLocation: $(Endjin_AzureLocation)
               marainEnvironmentSuffix: $(Endjin_EnvironmentSuffix)
               marainInstanceType: $(Marain_Instance_Type)
+              marainResourcePrefix: $(Marain_ResourcePrefix)
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
 
 
@@ -75,6 +77,7 @@ stages:
     Endjin_AzureServiceConnection: maraindev-endjindev-ado-spn
     Endjin_EnvironmentSuffix: dev
     Marain_Instance_Type: Development
+    Marain_ResourcePrefix: mar
   displayName: Deploy to 'endjin-dev' environment stage
   jobs:
   - deployment: deploy_endjin_dev
@@ -97,4 +100,5 @@ stages:
               azureLocation: $(Endjin_AzureLocation)
               marainEnvironmentSuffix: $(Endjin_EnvironmentSuffix)
               marainInstanceType: $(Marain_Instance_Type)
+              marainResourcePrefix: $(Marain_ResourcePrefix)
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment

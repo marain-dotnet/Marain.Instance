@@ -5,6 +5,7 @@ parameters:
   azureLocation:
   marainEnvironmentSuffix:
   marainInstanceType:
+  marainResourcePrefix:
   workingDirectory:
     
 steps:
@@ -32,7 +33,8 @@ steps:
             -EnvironmentSuffix ${{ parameters.marainEnvironmentSuffix }} `
             -AadTenantId ${{ parameters.azureTenantId }} `
             -SubscriptionId ${{ parameters.azureSubscriptionId }} `
-            -InstanceManifest ../InstanceManifests/${{ parameters.marainInstanceType }}.json
+            -InstanceManifest ../InstanceManifests/${{ parameters.marainInstanceType }}.json `
+            -Prefix ${{ marainResourcePrefix }}
     preferredAzurePowerShellVersion: '2.6.0'
     pwsh: true
     workingDirectory: ${{ parameters.workingDirectory }}

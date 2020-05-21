@@ -153,18 +153,37 @@ class MarainInstanceDeploymentContext {
         $OptionalParameters[$ArtifactsLocationSasTokenName] = ConvertTo-SecureString -AsPlainText -Force $StagingSasToken
 
         # Create the resource group only when it doesn't already exist
-        if ((Get-AzResourceGroup -Name $ResourceGroupName -Location $this.AzureLocation -Verbose -ErrorAction SilentlyContinue) -eq $null) {
+        if ($null -eq (Get-AzResourceGroup -Name $ResourceGroupName -Location $this.AzureLocation -Verbose -ErrorAction SilentlyContinue)) {
             New-AzResourceGroup -Name $ResourceGroupName -Location $this.AzureLocation -Verbose -Force -ErrorAction Stop
         }
 
-        $DeploymentResult = New-AzResourceGroupDeployment `
-            -Name ((Get-ChildItem $ArmTemplatePath).BaseName + '-' + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')) `
-            -ResourceGroupName $ResourceGroupName `
-            -TemplateFile $ArmTemplatePath `
-            @OptionalParameters `
-            @TemplateParameters `
-            -Force -Verbose `
-            -ErrorVariable ErrorMessages
+        # Deploy the ARM template with a built-in retry loop to try and limit the disruption from spurious ARM errors
+        $retries = 1
+        $maxRetries = 3
+        $DeploymentResult = $null
+        while ($retries -le $maxRetries) {
+            try {
+                $DeploymentResult = New-AzResourceGroupDeployment `
+                    -Name ((Get-ChildItem $ArmTemplatePath).BaseName + '-' + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')) `
+                    -ResourceGroupName $ResourceGroupName `
+                    -TemplateFile $ArmTemplatePath `
+                    @OptionalParameters `
+                    @TemplateParameters `
+                    -Force -Verbose `
+                    -ErrorVariable ErrorMessages
+
+                # The template deployed successfully, drop out of retry loop
+                break
+            }
+            catch {
+                if ($retries -ge $maxRetries) {
+                    Write-Warning "Unable to deploy ARM template - retry attempts exceeded"
+                    throw $_
+                }
+                $retries++
+                Write-Warning ("Attempt {0}/{1} failed: {2}" -f $retries, $maxRetries, $_.Exception.Message)
+            }
+        }
 
         return $DeploymentResult
     }

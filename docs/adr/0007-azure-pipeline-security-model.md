@@ -7,7 +7,7 @@ Proposed
 
 ## Context
 
-This ADR defines an approach for a least-privilege Azure DevOps Pipeline that supports the automated deployment, teardown and re-deployment of a complete Marain instance.
+This ADR defines an approach for a least-privilege Azure DevOps Pipeline, using a Microsoft-hosted agent, that supports the automated deployment, teardown and re-deployment of a typical Azure PaaS-based solution.
 
 The challenge here is to balance the varied benefits of having a self-sufficient, repeatable pipeline with the need for adequate security controls to minimise the risk of the pipeline becoming the source of a security incident.
 
@@ -51,14 +51,15 @@ In order to ensure the principle of least privilege, whilst still enabling a ful
     * Azure Active Directory Graph scope:
         * `Directory.Read.All`
         * `Application.ReadWrite.Owned`
-1. AzureAD administrators get approval oversight of the AzureAD Graph permissions, via the 'admin consent' mechanism
+1. AzureAD administrators get approval oversight of the additional Graph permissions, via the 'admin consent' mechanism
 1. An Azure Pipelines service connection is created for each of the above identities
-1. The owner of the Azure Pipelines service connection gets approval oversight of any pipelines wishing to use it
+1. The owner of the Azure Pipelines service connection gets approval oversight of any pipelines wishing to use it (first time only)
 1. By using YAML-based pipelines, any changes can be subjected to review via a Pull Request process
 
 
 ## Consequences
 
+### Postive
 A pipeline is able to perform all the required automation tasks, with the following security controls in-place:
 
 1. All pipelines wishing to use this identity require initial approval
@@ -66,5 +67,9 @@ A pipeline is able to perform all the required automation tasks, with the follow
     * This mitigates a 'dev' pipeline inadvertently changing an identity used in 'prod' (for example)
     * NOTE: This means that all AzureAD application identities *must* be created via the pipeline
 1. A pipeline will have its ability to make role assignment changes constrained to its target subscription
-    * If required, further auditing or a security policy could be implemented to catch 'unexpected' role assignment operations
+    * If required, further auditing or a security policy could be implemented to try and catch 'unexpected' role assignment operations
 1. All actions associated with a pipeline will be performed by a single identity, which provides a clear audit trail
+
+### Negative
+- Attempts to subvert the pipeline from within a feature branch would get no pull request oversight
+- A credential key-rotation policy on such identities would require the associated Azure DevOps service connection to be kept in-sync

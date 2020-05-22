@@ -162,9 +162,12 @@ class MarainInstanceDeploymentContext {
         $maxRetries = 3
         $DeploymentResult = $null
         while ($retries -le $maxRetries) {
+            $deployName = "{0}-{1}-{2}" -f (Get-ChildItem $ArmTemplatePath).BaseName, `
+                                            ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm'), `
+                                            $retries
             try {
                 $DeploymentResult = New-AzResourceGroupDeployment `
-                    -Name ((Get-ChildItem $ArmTemplatePath).BaseName + '-' + ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm')) `
+                    -Name $deployName `
                     -ResourceGroupName $ResourceGroupName `
                     -TemplateFile $ArmTemplatePath `
                     @OptionalParameters `

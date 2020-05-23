@@ -3,7 +3,7 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-name: marain_ps_deployment
+name: deploy_instance
 
 trigger:
   - feature/powershell-deploy

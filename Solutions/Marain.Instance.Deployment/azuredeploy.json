@@ -32,12 +32,14 @@
     "tagValues": {
       "marainEnvironment": "[variables('resourceNameRoot')]"
     },
-    "tenantId": "[subscription().tenantID]"
+    "tenantId": "[subscription().tenantID]",
+    "appInsightsDeployName": "[concat(deployment().name, '-app-insights')]",
+    "keyVaultDeployName": "[concat(deployment().name, '-key-vault')]"
 
   },
   "resources": [
     {
-      "name": "app-insights",
+      "name": "[variables('appInsightsDeployName')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2016-09-01",
       "dependsOn": [],
@@ -64,7 +66,7 @@
       }
     },
     {
-      "name": "key-vault",
+      "name": "[concat(deployment().name, '-key-vault')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2016-09-01",
       "dependsOn": [],
@@ -88,11 +90,11 @@
       }
     },
     {
-      "name": "cicd-key-vault-access",
+      "name": "[concat(deployment().name, '-cicd-key-vault-access')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2016-09-01",
       "dependsOn": [
-        "key-vault"
+        "[variables('keyVaultDeployName')]"
       ],
       "properties": {
         "mode": "Incremental",
@@ -122,7 +124,7 @@
   "outputs": {
     "instrumentationKey": {
       "type": "string",
-      "value": "[reference('app-insights').outputs.instrumentationKey.value]"
+      "value": "[reference(variables('appInsightsDeployName')).outputs.instrumentationKey.value]"
     },
     "keyVaultName": {
       "type": "string",

@@ -162,6 +162,8 @@ class MarainInstanceDeploymentContext {
         $maxRetries = 3
         $DeploymentResult = $null
         while ($retries -le $maxRetries) {
+            if ($retries -gt 1) { Write-Host "Waiting 30secs before retry..."; Start-Sleep -Seconds 30 }
+
             $deployName = "{0}-{1}-{2}" -f (Get-ChildItem $ArmTemplatePath).BaseName, `
                                             ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm'), `
                                             $retries
@@ -179,12 +181,16 @@ class MarainInstanceDeploymentContext {
                 break
             }
             catch {
-                if ($retries -ge $maxRetries) {
+                if ($_.Exception.Message -match "Code=InvalidTemplate") {
+                    Write-Warning "Invalid ARM template error detected - skipping retries"
+                    throw $_
+                }
+                elseif ($retries -ge $maxRetries) {
                     Write-Warning "Unable to deploy ARM template - retry attempts exceeded"
                     throw $_
                 }
-                $retries++
                 Write-Warning ("Attempt {0}/{1} failed: {2}" -f $retries, $maxRetries, $_.Exception.Message)
+                $retries++
             }
         }
 

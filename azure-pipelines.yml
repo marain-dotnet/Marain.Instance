@@ -10,7 +10,7 @@ resources:
     - repository: recommended_practices
       type: github
       name: endjin/Endjin.RecommendedPractices.AzureDevopsPipelines.GitHub
-      endpoint: marain-dotnet
+      endpoint: marain-github
 
 trigger:
   branches:
@@ -28,7 +28,7 @@ stages:
   - template: templates/tag.for.release.yml@recommended_practices
     parameters:
       vmImage: 'windows-latest'
-      service_connection_github: 'marain-dotnet'
+      service_connection_github: 'marain-github'
   - job: Snapshot_Deploy_Sources
     displayName: Snapshot deployment sources for pipeline
     pool:

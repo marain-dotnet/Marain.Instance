@@ -160,25 +160,28 @@ class MarainInstanceDeploymentContext {
         # Deploy the ARM template with a built-in retry loop to try and limit the disruption from spurious ARM errors
         $retries = 1
         $maxRetries = 3
-        while ($retries -le $maxRetries) {
+        $DeploymentResult = $null
+        $success = $false
+        while (!$success -and $retries -le $maxRetries) {
             if ($retries -gt 1) { Write-Host "Waiting 30secs before retry..."; Start-Sleep -Seconds 30 }
 
-            $ErrorMessages = $null
             $deployName = "{0}-{1}-{2}" -f (Get-ChildItem $ArmTemplatePath).BaseName, `
                                             ((Get-Date).ToUniversalTime()).ToString('MMdd-HHmm'), `
                                             $retries
             try {
+                Write-Host "Deploying ARM template ($ArmTemplatePath)..."
                 $DeploymentResult = New-AzResourceGroupDeployment `
                     -Name $deployName `
                     -ResourceGroupName $ResourceGroupName `
                     -TemplateFile $ArmTemplatePath `
                     @OptionalParameters `
                     @TemplateParameters `
-                    -Force -Verbose `
-                    -ErrorVariable ErrorMessages
+                    -Force `
+                    -ErrorAction Stop
 
                 # The template deployed successfully, drop out of retry loop
-                return $DeploymentResult
+                $success = $true
+                Write-Host "ARM template deployment successful"
             }
             catch {
                 if ($_.Exception.Message -match "Code=InvalidTemplate") {
@@ -194,7 +197,7 @@ class MarainInstanceDeploymentContext {
             }
         }
 
-        return $null
+        return $DeploymentResult
     }
 
     [MarainAppService]GetCommonAppService([string]$AppKey)

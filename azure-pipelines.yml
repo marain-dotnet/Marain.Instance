@@ -28,7 +28,7 @@ stages:
   - job:
     displayName: Tag sources
     pool:
-      vmImage: 'ubuntu-latest'
+      vmImage: 'windows-latest'
     steps:
     - template: templates/install.dotnet-global-tools.workaround.yml@recommended_practices
     - template: templates/install-and-run-gitversion.yml@recommended_practices

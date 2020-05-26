@@ -28,6 +28,7 @@ steps:
     Inline: |
       $env:AZURE_CLIENT_ID = "$(AZURE_CLIENT_ID)"
       $env:AZURE_CLIENT_SECRET = "$(AZURE_CLIENT_SECRET)"
+      $ProgressPreference = "SilentlyContinue"
       ./Deploy-MarainInstanceInfrastructure.ps1 `
             -AzureLocation ${{ parameters.azureLocation }} `
             -EnvironmentSuffix ${{ parameters.marainEnvironmentSuffix }} `
@@ -35,6 +36,5 @@ steps:
             -SubscriptionId ${{ parameters.azureSubscriptionId }} `
             -InstanceManifest ../InstanceManifests/${{ parameters.marainInstanceType }}.json `
             -Prefix ${{ parameters.marainResourcePrefix }}
-    preferredAzurePowerShellVersion: '2.6.0'
     pwsh: true
     workingDirectory: ${{ parameters.workingDirectory }}

@@ -47,7 +47,7 @@ stages:
   - deployment: deploy_jd
     displayName: Deploy to 'jd' environment  
     pool:
-      vmImage: 'windows-latest'
+      vmImage: 'ubuntu-latest'
     environment: marain_jd
     strategy:
       runOnce:
@@ -68,7 +68,6 @@ stages:
                 gci variable:\ | ft -AutoSize | Out-String | Write-Host
                 Write-Host "*** Module info:"
                 Get-Module -ListAvailable | Select Name,Version,Path
-              preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
 
           - template: azurepipeline-templates/deploy-marain-instance.yml

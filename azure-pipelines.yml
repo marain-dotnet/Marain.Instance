@@ -3,17 +3,34 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-name: deploy_instance
+name: CI
+
+resources:
+  repositories:
+    - repository: recommended_practices
+      type: github
+      name: endjin/Endjin.RecommendedPractices.AzureDevopsPipelines.GitHub
+      endpoint: marain-github
 
 trigger:
-  - feature/powershell-deploy
+  branches:
+    include:
+    - master
+    - feature/*
+  tags:
+    include:
+    - '*'
 
 stages:
 - stage: Build
   displayName: Build stage
   jobs:
-  - job: Build
-    displayName: Build
+  - template: templates/tag.for.release.yml@recommended_practices
+    parameters:
+      vmImage: 'windows-latest'
+      service_connection_github: 'marain-github'
+  - job: Snapshot_Deploy_Sources
+    displayName: Snapshot deployment sources for pipeline
     pool:
       vmImage: 'ubuntu-latest'
     steps:
@@ -57,40 +74,6 @@ stages:
                 Get-Module -ListAvailable | Select Name,Version,Path
               preferredAzurePowerShellVersion: '2.6.0'
               pwsh: true
-
-          - template: azurepipeline-templates/deploy-marain-instance.yml
-            parameters:
-              azureServiceConnection: $(Endjin_AzureServiceConnection)
-              azureSubscriptionId: $(Endjin_SubscriptionId)
-              azureTenantId: $(Endjin_AadTenantId)
-              azureLocation: $(Endjin_AzureLocation)
-              marainEnvironmentSuffix: $(Endjin_EnvironmentSuffix)
-              marainInstanceType: $(Marain_Instance_Type)
-              marainResourcePrefix: $(Marain_ResourcePrefix)
-              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
-
-
-- stage: deploy_to_endjin_dev
-  variables:
-    Endjin_AzureLocation: northeurope
-    Endjin_SubscriptionId: 98333d29-7302-4f93-a51d-70c49ca7e180
-    Endjin_AzureServiceConnection: maraindev-endjindev-ado-spn
-    Endjin_EnvironmentSuffix: dev
-    Marain_Instance_Type: Development
-    Marain_ResourcePrefix: mar
-  displayName: Deploy to 'endjin-dev' environment stage
-  jobs:
-  - deployment: deploy_endjin_dev
-    displayName: Deploy to 'endjin-dev' environment  
-    pool:
-      vmImage: 'ubuntu-latest'
-    environment: marain_endjin_dev
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: marain_instance
 
           - template: azurepipeline-templates/deploy-marain-instance.yml
             parameters:

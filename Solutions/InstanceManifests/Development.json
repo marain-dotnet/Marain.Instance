@@ -2,15 +2,15 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "0.3.0-arm-retry-tweaks.3"
+      "release": "0.3.0-preview.36"
     },
     "Marain.Operations": {
       "omit": false,
-      "release": "0.9.0-arm-retry-tweaks.1"
+      "release": "0.9.0-preview.44"
     },
     "Marain.Workflow": {
       "omit": false,
-      "release": "0.2.0-arm-retry-tweaks.1"
+      "release": "0.2.0-preview.80"
     }
   }
 }

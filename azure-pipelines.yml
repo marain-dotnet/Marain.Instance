@@ -30,8 +30,8 @@ stages:
     pool:
       vmImage: 'ubuntu-latest'
     steps:
-    - template: install.dotnet-global-tools.workaround.yml
-    - template: install-and-run-gitversion.yml
+    - template: templates/install.dotnet-global-tools.workaround.yml@recommended_practices
+    - template: templates/install-and-run-gitversion.yml@recommended_practices
 
     - powershell: |
         Write-Host "##vso[task.setvariable variable=Endjin_IsPreRelease]$((-not ([string]::IsNullOrEmpty($Env:GITVERSION_PRERELEASETAG))))"

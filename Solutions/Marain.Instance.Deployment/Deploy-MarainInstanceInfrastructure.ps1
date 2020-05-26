@@ -160,7 +160,6 @@ class MarainInstanceDeploymentContext {
         # Deploy the ARM template with a built-in retry loop to try and limit the disruption from spurious ARM errors
         $retries = 1
         $maxRetries = 3
-        $DeploymentResult = $null
         while ($retries -le $maxRetries) {
             if ($retries -gt 1) { Write-Host "Waiting 30secs before retry..."; Start-Sleep -Seconds 30 }
 
@@ -178,7 +177,7 @@ class MarainInstanceDeploymentContext {
                     -ErrorVariable ErrorMessages
 
                 # The template deployed successfully, drop out of retry loop
-                break
+                return $DeploymentResult
             }
             catch {
                 if ($_.Exception.Message -match "Code=InvalidTemplate") {
@@ -194,7 +193,7 @@ class MarainInstanceDeploymentContext {
             }
         }
 
-        return $DeploymentResult
+        return $null
     }
 
     [MarainAppService]GetCommonAppService([string]$AppKey)
@@ -513,18 +512,17 @@ class MarainServiceDeploymentContext {
         $ctx = Get-AzContext
         $AadGraphApiResourceId = "https://graph.windows.net/"
         $GraphToken = $ctx.TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.InstanceContext.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
-        # we need to run the AzureAD module in a different process due to assembly mismatches
+        # we need to run the AzureAD module in a different process due to assembly version mismatches with Az module
         $script = @(
-            "Import-Module $($aadModule.Path)"
+            "Import-Module $($aadModule.Path) -Passthru | Format-List"
             "Connect-AzureAD -AccountId $($ctx.Subscription) -TenantId $($ctx.Tenant) -AadAccessToken $($GraphToken.AccessToken)"
             "`$existing = (Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId | Where { `$_.PrincipalId -eq '$ClientIdentityServicePrincipalId' -and `$_.Id -eq '$TargetAppRoleId' })"
             "Write-Host ('DEBUG: >{0}<' -f `$existing)"
-            "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; try { New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId -ErrorAction Stop } catch { Write-Warning ('Error during role assignment: {0}' -f `$_.Exception.Message) } }"
+            "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; try { New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId -ErrorAction Stop } catch { Write-Host ('WARNING: Potential error during role assignment: {0}' -f `$_.Exception.Message) } }"
         )
-        Write-Host ("Outer-PID: {0}" -f (Get-Item variable:\PID).Value)
         Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         $sb = [scriptblock]::Create($script -join "; ")
-        pwsh -c $sb
+        $(& pwsh -NonInteractive -Command $sb) | Out-Null
     }
 
 

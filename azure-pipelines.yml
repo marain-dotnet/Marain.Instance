@@ -28,7 +28,7 @@ stages:
   - template: templates/tag.for.release.yml@recommended_practices
     parameters:
       vmImage: 'windows-latest'
-      service_connection_github: 'marain-github'
+      service_connection_github: 'marain-dotnet'
   - job: Snapshot_Deploy_Sources
     displayName: Snapshot deployment sources for pipeline
     pool:

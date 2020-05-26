@@ -25,10 +25,28 @@ stages:
 - stage: Build
   displayName: Build stage
   jobs:
-  - template: templates/tag.for.release.yml@recommended_practices
-    parameters:
-      vmImage: 'windows-latest'
-      service_connection_github: 'marain-github'
+  - job:
+    displayName: Tag sources
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - template: install.dotnet-global-tools.workaround.yml
+    - template: install-and-run-gitversion.yml
+
+    - powershell: |
+        Write-Host "##vso[task.setvariable variable=Endjin_IsPreRelease]$((-not ([string]::IsNullOrEmpty($Env:GITVERSION_PRERELEASETAG))))"
+        Write-Host "##vso[task.setvariable variable=Endjin_Repository_Name]$Env:BUILD_REPOSITORY_NAME"
+      displayName: 'Set Custom Environment Variables'
+
+    - task: GitHubTag@1
+      condition: and(succeeded(), or(variables['Endjin.ForcePublish'], eq(variables['GitVersion.PreReleaseTag'], '')))
+      displayName: 'Tag Git'
+      inputs:
+        githubEndpoint: 'marain-github'
+        repositoryName: $(Endjin_Repository_Name)
+        commmit: 'Release v$(GitVersion.SemVer)'
+        tag: '$(GitVersion.SemVer)'
+
   - job: Snapshot_Deploy_Sources
     displayName: Snapshot deployment sources for pipeline
     pool:

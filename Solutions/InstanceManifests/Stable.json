@@ -1,0 +1,13 @@
+{
+  "services": {
+    "Marain.Tenancy": {
+      "release": "0.3.0-preview.36"
+    },
+    "Marain.Operations": {
+      "release": "0.9.0-preview-44"
+    },
+    "Marain.Workflow": {
+      "release": "0.2.0-preview.80"
+    }
+  }
+}

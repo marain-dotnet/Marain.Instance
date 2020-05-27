@@ -21,6 +21,15 @@ trigger:
     include:
     - '*'
 
+variables:
+  Endjin_AzureLocation: uksouth
+  Endjin_SubscriptionId: 13821a69-41a3-43ab-9577-1519963ea474
+  Endjin_AzureServiceConnection: marjd-ado-spn
+  Endjin_EnvironmentSuffix: jd
+  Marain_Instance_Type: Development
+  Marain_ResourcePrefix: marain
+
+
 stages:
 - stage: Build
   displayName: Build stage
@@ -34,15 +43,8 @@ stages:
       artifact: marain_instance
 
 
-- stage: deploy_to_jd
-  variables:
-    Endjin_AzureLocation: uksouth
-    Endjin_SubscriptionId: 13821a69-41a3-43ab-9577-1519963ea474
-    Endjin_AzureServiceConnection: marjd-ado-spn
-    Endjin_EnvironmentSuffix: jd
-    Marain_Instance_Type: Development
-    Marain_ResourcePrefix: marain
-  displayName: Deploy to 'jd' environment stage
+- stage: Test_Deployment
+  displayName: Test deployment stage
   jobs:
   - deployment: deploy_jd
     displayName: Deploy to 'jd' environment  
@@ -104,3 +106,29 @@ stages:
         repositoryName: $(Endjin_Repository_Name)
         commmit: 'Release v$(GitVersion.SemVer)'
         tag: '$(GitVersion.SemVer)'
+  - job:
+    displayName: Cleardown test deployment
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzurePowerShell@4
+      condition: and(succeeded(), eq(variables['SkipCleardown'], ''))
+      displayName: 'Delete Azure resources'
+      inputs:
+        azureSubscription: '$(Endjin_AzureServiceConnection)'
+        ScriptType: InlineScript
+        Inline: |
+          $prefix = "$(Marain_ResourcePrefix)"
+          $suffix = "$(Endjin_EnvironmentSuffix)"
+          @("workflow","operations","tenancy","instance") | % {
+            $groupName = "{0}.{1}.{2}" -f $prefix, $_, $suffix
+            Write-Host ("Checking resource group: {0}" -f $groupName)
+            Get-AzResourceGroup $groupName -ErrorAction SilentlyContinue | Select -First 1 | Remove-AzResourceGroup -Verbose -Force
+          }
+          @("tenancy","operationscontrol","workfloweng","workflowmi","tenantadmin") | % {
+              $appName = "{0}{1}{2}" -f $prefix, $suffix, $_
+              Write-Host ("Checking AzureAD application: {0}" -f $appName)
+              Get-AzADApplication -DisplayName $appName | Select -First 1 | Remove-AzADApplication -Verbose -Force
+          }
+        azurePowerShellVersion: latestVersion
+        pwsh: true

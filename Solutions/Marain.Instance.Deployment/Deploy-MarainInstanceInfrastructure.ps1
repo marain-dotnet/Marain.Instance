@@ -177,6 +177,7 @@ class MarainInstanceDeploymentContext {
                     @OptionalParameters `
                     @TemplateParameters `
                     -Force `
+                    -Verbose `
                     -ErrorAction Stop
 
                 # The template deployed successfully, drop out of retry loop
@@ -888,7 +889,7 @@ try {
                 $TempDir = Join-Path $PSScriptRoot ("{0}-temp" -f $asset.name)
                 New-Item -Path $TempDir -ItemType Directory | Out-Null
                 $DeploymentPackageDir = Join-Path $TempDir "DeploymentPackage"
-                New-Item -Path $DeploymentPackageDir -ItemType Directory 
+                New-Item -Path $DeploymentPackageDir -ItemType Directory | Out-Null
                 try {
                     $ZipPath = Join-Path $DeploymentPackageDir $asset.name
 

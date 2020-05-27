@@ -68,6 +68,7 @@ stages:
                 gci variable:\ | ft -AutoSize | Out-String | Write-Host
                 Write-Host "*** Module info:"
                 Get-Module -ListAvailable | Select Name,Version,Path
+              azurePowerShellVersion: latestVersion
               pwsh: true
 
           - template: azurepipeline-templates/deploy-marain-instance.yml

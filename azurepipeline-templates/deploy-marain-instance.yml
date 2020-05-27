@@ -20,7 +20,7 @@ steps:
     addSpnToEnvironment: true
     failOnStandardError: true
 
-- task: AzurePowerShell@5
+- task: AzurePowerShell@4
   displayName: 'Deploy Marain instance'
   inputs:
     azureSubscription: '${{ parameters.azureServiceConnection }}'
@@ -36,5 +36,6 @@ steps:
             -SubscriptionId ${{ parameters.azureSubscriptionId }} `
             -InstanceManifest ../InstanceManifests/${{ parameters.marainInstanceType }}.json `
             -Prefix ${{ parameters.marainResourcePrefix }}
+    azurePowerShellVersion: latestVersion
     pwsh: true
     workingDirectory: ${{ parameters.workingDirectory }}

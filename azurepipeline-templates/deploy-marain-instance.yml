@@ -4,7 +4,8 @@ parameters:
   azureTenantId:
   azureLocation:
   marainEnvironmentSuffix:
-  marainInstanceType:
+  marainManifestPath: "../InstanceManifests"
+  marainReleaseChannel:
   marainResourcePrefix:
   workingDirectory:
     
@@ -34,7 +35,7 @@ steps:
             -EnvironmentSuffix ${{ parameters.marainEnvironmentSuffix }} `
             -AadTenantId ${{ parameters.azureTenantId }} `
             -SubscriptionId ${{ parameters.azureSubscriptionId }} `
-            -InstanceManifest ../InstanceManifests/${{ parameters.marainInstanceType }}.json `
+            -InstanceManifest ${{ parameters.marainManifestPath }}/${{ parameters.marainInstanceType }}.json `
             -Prefix ${{ parameters.marainResourcePrefix }}
     azurePowerShellVersion: latestVersion
     pwsh: true

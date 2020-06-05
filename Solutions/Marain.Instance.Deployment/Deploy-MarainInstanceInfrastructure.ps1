@@ -868,7 +868,7 @@ try {
 
         if ((-not $SingleServiceToDeploy) -or ($SingleServiceToDeploy -eq $MarainServiceName)) {
             $ServiceManifestEntry = $InstanceManifest.services.$MarainServiceName
-            if ($null -ne $ServiceManifestEntry.omit -and $ServiceManifestEntry.omit) {
+            if ( ($ServiceManifestEntry | Get-Member omit) -and $ServiceManifestEntry.omit) {
                 continue
             }
             Write-Host "Starting infrastructure deployment for $MarainServiceName"

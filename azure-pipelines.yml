@@ -22,7 +22,7 @@ trigger:
     - '*'
 
 variables:
-  Endjin_AzureLocation: uksouth
+  Endjin_AzureLocation: northeurope
   Endjin_SubscriptionId: 98333d29-7302-4f93-a51d-70c49ca7e180
   Endjin_AzureServiceConnection: endjin-internal-development-spn
   Endjin_EnvironmentSuffix: bld

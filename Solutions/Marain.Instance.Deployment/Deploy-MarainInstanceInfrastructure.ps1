@@ -65,7 +65,7 @@ class MarainInstanceDeploymentContext {
         }
 
         $this.DeploymentStagingResourceGroupName = 'ARM_Deploy_Staging_' + $this.AzureLocation.Replace(" ", "_")
-        $this.DeploymentStagingStorageAccountName = ('stage' + $this.AzureLocation + $this.SubscriptionId).Replace('-', '').substring(0, 24)
+        $this.DeploymentStagingStorageAccountName = ('stg' + $this.AzureLocation + $this.SubscriptionId).Replace('-', '').substring(0, 24)
     }
 
     [string]$AzureLocation

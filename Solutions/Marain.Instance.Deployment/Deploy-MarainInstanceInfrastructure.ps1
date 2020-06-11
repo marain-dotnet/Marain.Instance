@@ -64,7 +64,8 @@ class MarainInstanceDeploymentContext {
             }
         }
 
-        $this.DeploymentStagingStorageAccountName = ('stage' + $AzureLocation + $this.SubscriptionId).Replace('-', '').substring(0, 24)
+        $this.DeploymentStagingResourceGroupName = 'ARM_Deploy_Staging_' + $this.AzureLocation.Replace(" ", "_")
+        $this.DeploymentStagingStorageAccountName = ('stage' + $this.AzureLocation + $this.SubscriptionId).Replace('-', '').substring(0, 24)
     }
 
     [string]$AzureLocation
@@ -80,6 +81,7 @@ class MarainInstanceDeploymentContext {
     [Hashtable]$InstanceApps
     [bool]$DoNotUseGraph
 
+    [string]$DeploymentStagingResourceGroupName
     [string]$DeploymentStagingStorageAccountName
 
     [string]$ApplicationInsightsInstrumentationKey
@@ -119,15 +121,14 @@ class MarainInstanceDeploymentContext {
         $ArtifactsLocationName = '_artifactsLocation'
         $ArtifactsLocationSasTokenName = '_artifactsLocationSasToken'
     
-        $StorageResourceGroupName = 'ARM_Deploy_Staging'
         $StorageContainerName = $ResourceGroupName.ToLowerInvariant().Replace(".", "") + '-stageartifacts'
 
-        $StorageAccount = Get-AzStorageAccount -ResourceGroupName $StorageResourceGroupName -Name $this.DeploymentStagingStorageAccountName -ErrorAction SilentlyContinue
+        $StorageAccount = Get-AzStorageAccount -ResourceGroupName $this.DeploymentStagingResourceGroupName -Name $this.DeploymentStagingStorageAccountName -ErrorAction SilentlyContinue
 
         # Create the storage account if it doesn't already exist
         if ($StorageAccount -eq $null) {
-            New-AzResourceGroup -Location $this.AzureLocation -Name $StorageResourceGroupName -Force
-            $StorageAccount = New-AzStorageAccount -StorageAccountName $this.DeploymentStagingStorageAccountName  -Type 'Standard_LRS' -ResourceGroupName $StorageResourceGroupName -Location $this.AzureLocation
+            New-AzResourceGroup -Location $this.AzureLocation -Name $this.DeploymentStagingResourceGroupName -Force
+            $StorageAccount = New-AzStorageAccount -StorageAccountName $this.DeploymentStagingStorageAccountName  -Type 'Standard_LRS' -ResourceGroupName $this.DeploymentStagingResourceGroupName -Location $this.AzureLocation
         }
 
         # Copy files from the local storage staging location to the storage account container

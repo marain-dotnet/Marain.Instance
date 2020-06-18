@@ -23,11 +23,11 @@ trigger:
 
 variables:
   Endjin_AzureLocation: uksouth
-  Endjin_SubscriptionId: 13821a69-41a3-43ab-9577-1519963ea474
-  Endjin_AzureServiceConnection: marjd-ado-spn
-  Endjin_EnvironmentSuffix: jd
+  Endjin_SubscriptionId: 98333d29-7302-4f93-a51d-70c49ca7e180
+  Endjin_AzureServiceConnection: endjin-internal-development
+  Endjin_EnvironmentSuffix: td
   Marain_Instance_Type: Stable
-  Marain_ResourcePrefix: marain
+  Marain_ResourcePrefix: mar
 
 
 stages:
@@ -46,11 +46,11 @@ stages:
 - stage: Test_Deployment
   displayName: Test deployment stage
   jobs:
-  - deployment: deploy_jd
-    displayName: Deploy to 'jd' environment  
+  - deployment: deploy_td
+    displayName: Deploy to 'td' environment  
     pool:
       vmImage: 'ubuntu-latest'
-    environment: marain_jd
+    environment: marain_td
     strategy:
       runOnce:
         deploy:

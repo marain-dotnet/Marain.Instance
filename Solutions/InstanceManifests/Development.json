@@ -11,6 +11,10 @@
     "Marain.Workflow": {
       "omit": false,
       "release": "0.2.0-preview.81"
+    },
+    "Marain.Claims": {
+      "omit": false,
+      "release": "0.4.0"
     }
   }
 }

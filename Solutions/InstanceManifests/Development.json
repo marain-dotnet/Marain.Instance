@@ -10,7 +10,7 @@
     },
     "Marain.Workflow": {
       "omit": false,
-      "release": "0.2.0-preview.83"
+      "release": "0.2.0-definition-blob-storage.7"
     },
     "Marain.Claims": {
       "omit": false,

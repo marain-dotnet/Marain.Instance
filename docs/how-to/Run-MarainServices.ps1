@@ -1,24 +1,24 @@
-Start-Process `
-    -WorkingDirectory "C:\git\Marain.Tenancy\Solutions\Marain.Tenancy.Host.Functions\bin\Debug\netcoreapp3.1" `
-    -FilePath "func.cmd" `
-    -ArgumentList "start","--port 7071"
+param (
+    [string] $BasePath
+)
 
-Start-Process `
-    -WorkingDirectory "C:\git\Marain.Operations\Solutions\Marain.Operations.ControlHost.Functions\bin\Debug\netcoreapp3.1" `
-    -FilePath "func.cmd" `
-    -ArgumentList "start","--port 7078"
+$hosts = @(
+    @{ service = "Marain.Tenancy"; name = "Marain.Tenancy.Host.Functions"; port = 7071 },
+    @{ service = "Marain.Claims"; name = "Marain.Claims.Host.Functions"; port = 7076 },
+    @{ service = "Marain.Operations"; name = "Marain.Operations.ControlHost.Functions"; port = 7078 },
+    @{ service = "Marain.Operations"; name = "Marain.Operations.StatusHost.Functions"; port = 7077 },
+    @{ service = "Marain.Workflow"; name = "Marain.Workflow.Api.EngineHost"; port = 7075 },
+    @{ service = "Marain.Workflow"; name = "Marain.Workflow.Api.MessageProcessingHost"; port = 7073 }
+)
 
-Start-Process `
-    -WorkingDirectory "C:\git\Marain.Operations\Solutions\Marain.Operations.StatusHost.Functions\bin\Debug\netcoreapp3.1" `
-    -FilePath "func.cmd" `
-    -ArgumentList "start","--port 7077"
+$hosts | ForEach-Object {
+    $service = $_.service
+    $name = $_.name
+    $port = $_.port
 
-Start-Process `
-    -WorkingDirectory "C:\git\Marain.Workflow\Solutions\Marain.Workflow.Api.EngineHost\bin\Debug\netcoreapp3.1" `
-    -FilePath "func.cmd" `
-    -ArgumentList "start","--port 7075"
-
-Start-Process `
-    -WorkingDirectory "C:\git\Marain.Workflow\Solutions\Marain.Workflow.Api.MessageProcessingHost\bin\Debug\netcoreapp3.1" `
-    -FilePath "func.cmd" `
-    -ArgumentList "start","--port 7073"
+    Start-Process `
+        -WorkingDirectory (Join-Path $BasePath "$service\Solutions\$name\bin\Debug\netcoreapp3.1") `
+        -FilePath "func.cmd" `
+        -ArgumentList "start","--port $port" `
+        -RedirectStandardError (Join-Path $BasePath "$name.stderr.txt")
+}

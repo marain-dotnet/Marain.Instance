@@ -3,20 +3,132 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+name: CI
+
+resources:
+  repositories:
+    - repository: recommended_practices
+      type: github
+      name: endjin/Endjin.RecommendedPractices.AzureDevopsPipelines.GitHub
+      endpoint: marain-github
+
 trigger:
-- master
+  branches:
+    include:
+    - master
+    - feature/*
+  tags:
+    include:
+    - '*'
 
-pool:
-  vmImage: 'ubuntu-latest'
+variables:
+  Endjin_AzureLocation: northeurope
+  Endjin_SubscriptionId: 98333d29-7302-4f93-a51d-70c49ca7e180
+  Endjin_AzureServiceConnection: endjin-internal-development
+  Endjin_EnvironmentSuffix: td
+  Marain_Instance_Type: Stable
+  Marain_ResourcePrefix: mar
 
-steps:
-- task: AzurePowerShell@5
-  displayName: 'Deploy dev environment'
-  inputs:
-    azureSubscription: '$(Endjin_AzureServiceConnection)'
-    ScriptType: 'FilePath'
-    ScriptPath: 'Solutions/Marain.Instance.Deployment/Deploy-MarainInstanceInfrastructure.ps1'
-    ScriptArguments: '-AzureLocation $(Endjin_AzureLocation) -EnvironmentSuffix $(Endjin_EnvironmentSuffix) -AadTenantId $(Endjin_AadTenantId) -SubscriptionId $(Endjin_SubscriptionId) -InstanceManifest $(Build.SourcesDirectory)/Solutions/InstanceManifests/Development.json -AadAppIds @{"mardevtenancy"="$(Endjin_TenancyAppId)";"mardevoperationscontrol"="$(Endjin_OperationsControlAppId)"} -DoNotUseGraph'
-    preferredAzurePowerShellVersion: '2.6.0'
-    pwsh: true
-    workingDirectory: 'Solutions/Marain.Instance.Deployment'
+
+stages:
+- stage: Build
+  displayName: Build stage
+  jobs:
+  - job: Snapshot_Deploy_Sources
+    displayName: Snapshot deployment sources for pipeline
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - publish: $(Build.SourcesDirectory)/Solutions
+      artifact: marain_instance
+
+
+- stage: Test_Deployment
+  displayName: Test deployment stage
+  jobs:
+  - deployment: deploy_td
+    displayName: Deploy to 'td' environment  
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: marain_td
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: marain_instance
+
+          - task: AzurePowerShell@5
+            displayName: 'Environment debug'
+            inputs:
+              azureSubscription: '$(Endjin_AzureServiceConnection)'
+              ScriptType: InlineScript
+              Inline: |
+                Write-Host "*** Environment info:"
+                gci env:\ | ft -AutoSize | Out-String | Write-Host
+                Write-Host "*** Vars info:"
+                gci variable:\ | ft -AutoSize | Out-String | Write-Host
+                Write-Host "*** Module info:"
+                Get-Module -ListAvailable | Select Name,Version,Path
+              azurePowerShellVersion: latestVersion
+              pwsh: true
+
+          - template: azurepipeline-templates/deploy-marain-instance.yml
+            parameters:
+              azureServiceConnection: $(Endjin_AzureServiceConnection)
+              azureSubscriptionId: $(Endjin_SubscriptionId)
+              azureTenantId: $(Endjin_AadTenantId)
+              azureLocation: $(Endjin_AzureLocation)
+              marainEnvironmentSuffix: $(Endjin_EnvironmentSuffix)
+              marainInstanceType: $(Marain_Instance_Type)
+              marainResourcePrefix: $(Marain_ResourcePrefix)
+              workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
+
+- stage: Tag_Build
+  displayName: Tag successful build
+  jobs:
+  - job:
+    displayName: Tag sources
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+    - template: templates/install.dotnet-global-tools.workaround.yml@recommended_practices
+    - template: templates/install-and-run-gitversion.yml@recommended_practices
+    - powershell: |
+        Write-Host "##vso[task.setvariable variable=Endjin_IsPreRelease]$((-not ([string]::IsNullOrEmpty($Env:GITVERSION_PRERELEASETAG))))"
+        Write-Host "##vso[task.setvariable variable=Endjin_Repository_Name]$Env:BUILD_REPOSITORY_NAME"
+      displayName: 'Set Custom Environment Variables'
+    - task: GitHubTag@1
+      condition: and(succeeded(), or(variables['Endjin.ForcePublish'], eq(variables['GitVersion.PreReleaseTag'], '')))
+      displayName: 'Tag Git'
+      inputs:
+        githubEndpoint: 'marain-github'
+        repositoryName: $(Endjin_Repository_Name)
+        commmit: 'Release v$(GitVersion.SemVer)'
+        tag: '$(GitVersion.SemVer)'
+  - job:
+    displayName: Cleardown test deployment
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzurePowerShell@4
+      condition: and(succeeded(), eq(variables['SkipCleardown'], ''))
+      displayName: 'Delete Azure resources'
+      inputs:
+        azureSubscription: '$(Endjin_AzureServiceConnection)'
+        ScriptType: InlineScript
+        Inline: |
+          $prefix = "$(Marain_ResourcePrefix)"
+          $suffix = "$(Endjin_EnvironmentSuffix)"
+          @("workflow","operations","tenancy","instance") | % {
+            $groupName = "{0}.{1}.{2}" -f $prefix, $_, $suffix
+            Write-Host ("Checking resource group: {0}" -f $groupName)
+            Get-AzResourceGroup $groupName -ErrorAction SilentlyContinue | Select -First 1 | Remove-AzResourceGroup -Verbose -Force
+          }
+          @("tenancy","operationscontrol","workfloweng","workflowmi","tenantadmin") | % {
+              $appName = "{0}{1}{2}" -f $prefix, $suffix, $_
+              Write-Host ("Checking AzureAD application: {0}" -f $appName)
+              Get-AzADApplication -DisplayName $appName | Select -First 1 | Remove-AzADApplication -Verbose -Force
+          }
+        azurePowerShellVersion: latestVersion
+        pwsh: true

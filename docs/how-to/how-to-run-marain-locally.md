@@ -19,126 +19,64 @@ To run any of the services locally, you need to do the following:
 
 Since you'll be running multiple services, it's preferable to do so without needing an instance of Visual Studio open for each one. As long as you don't need them running in Debug mode, you can do this using the Azure Functions Core Tools (if you don't have them installed, do so now from npm - https://www.npmjs.com/package/azure-functions-core-tools).
 
-You will however need to open each solution in Visual Studio to apply configuration and build the code.
-
 Before starting, ensure you have the Azure Storage emulator running - when running services locally, the easiest option for the Tenancy and Operations services is to store their data using the emulator. For the Workflow service, the simplest solution is to use the Cosmos DB emulator. You can however use "real" storage in Azure if you prefer. 
+
+You also need to ensure you have `git` (https://git-scm.com/downloads) and the `dotnet` CLI (https://docs.microsoft.com/en-us/dotnet/core/install/windows?tabs=netcore31) installed.
 
 ## Setting up the functions
 
-### Marain.Tenancy
+You can run the following script
 
-This solution contains both the function host and a CLI. To configure the function to use the Azure Storage emulator, simply copy `local.settings.template.json` as `local.settings.json`. Ensure the new file has `Copy to Output Directory` set to `Copy if newer` or `Always`.
-
-To configure the CLI to use the locally hosted function, create a new `appsettings.json` file containing the following:
-
-```json
-{
-  "TenancyClient:TenancyServiceBaseUri": "http://localhost:7071/"
-}
+```powershell
+./Setup-MarainServices.ps1 -BasePath <BasePath>
 ```
 
-Again, ensure the new file has `Copy to Output Directory` set to `Copy if newer` or `Always`.
+which will:
+- `git clone` the Marain services repos
+- create copies of the `local.settings.template.json` settings templates as `local.settings.json`
+- update the values of `local.settings.json` to ensure that everything is configured for local development (e.g. URLs to services are set to the correct `localhost:<port>`)
+- build the functions host projects using `dotnet`
 
-Once the configuration files are present, build the Solution. You can then either run the service from Visual Studio, or close Visual Studio down and run the function from the command prompt by navigating to the `Marain.Tenancy\Solutions\Marain.Tenancy.Host.Functions\bin\Debug\netcoreapp3.1` folder and executing the command
+You only need to run this script once, but you can run it again if you wish to update to later versions of the Marain repos.
 
-```
-func start --port 7071
-```
+For `<BasePath>`, choose the location where you want the Marain repos to be cloned. Each will be cloned into a subfolder at this location.
 
-**Note that you will need the Tenancy service running in order for the `marain` commands in subsequent sections to execute successfully.**
+(*NOTE* - the script must be run using PowerShell 6.0+, as previous versions are unable to parse JSON files with comments)
 
-### Marain.TenantManagement
+## Running the functions
 
-Once you've got the Tenancy service running, you will need to initialise it for use with Marain. This is done via the CLI in the Marain.TenantManagement solution.
+To run the functions, run the following script
 
-As with the Marain.Tenancy CLI, configure the Tenant Management CLI by adding an `appsettings.json` file containing the following, and ensure `Copy to Output Directory` is set appropriately:
-
-```json
-{
-  "TenancyClient:TenancyServiceBaseUri": "http://localhost:7071/"
-}
+```powershell
+./Run-MarainServices.ps1 -BasePath <BasePath>
 ```
 
-Then build the solution.
+using the same `<BasePath>` used for `Setup-MarainServices`.
 
-You can now use a command prompt to execute the tool to initialise the local tenancy service. Navigate to the `Marain.TenantManagement\Solutions\Marain.TenantManagement.Cli\bin\Debug\netcoreapp3.1` folder and execute the command
+This will start up Tenancy, Claims, Operations, and Workflow.
 
-```
-marain init
-```
+The rest of the steps in this documentation only need to be run on initial setup. Once configured, you can just use the `Run-MarainServices` script in the future to start up the services.
 
-It will be useful to keep a command prompt open in this folder as you'll need the CLI to create tenant registrations for other Marain services.
 
-### Marain.Operations
+## Initialising the tenant and creating the service tenants
 
-The next Marain service you should set up is Operations. As with previous services, pull the code and open in Visual Studio. The Operations service contains two functions: the Control Host and the Status Host.
+Once you've got the Tenancy service running, you will need to initialise it for use with Marain, and each of the services need to be registered as service tenants with the Tenancy Service. 
 
-Create the `local.settings.json` files by copying the `local.settings.template.json` files in each function (`Marain.Operations.ControlHost.Functions` and `Marain.Operations.StatusHost.Functions`). You only need to update one setting in each file: `TenancyClient__TenancyServiceBaseUri` should be set to `http://localhost:7071/` to refer to the locally running Tenancy service. Ensure `Copy to Output Directory` is set appropriately for both config files then build the solution. As before, you can now run the functions from Visual Studio or the command line using the `func start` command. The Control function should run on port `7078` and the Status function on port `7077`.
+This is done via the CLI in the Marain.TenantManagement solution.
 
-You then need to register the Workflow service with the Tenancy service. Using the `marain` tool built in the previous section, execute the following command, replacing the path to the service manifest with the appropriate path for your local environment:
+You can run the following script
 
-```
-marain create-service c:\git\Marain.Operations\Solutions\ServiceManifests\OperationsServiceManifest.jsonc
+```powershell
+./Initialise-MarainServices.ps1 -BasePath <BasePath>
 ```
 
-You should see output like the following:
-```
-info: Marain.TenantManagement.Internal.TenantManagementService[0]
-      Created new service tenant 'Operations v1' with Id '3633754ac4c9be44b55bfe791b1780f12429524fe7b6cc48a265a307407ec858'.
-```
-
-And if you then run 
-
-```
-marain show-hierarchy
-```
-
-You should see the newly created 'Operations v1' service tenant.
-
-```
-Root - (f26450ab1668784bb327951c8b08f347)
- |     [Type: Undefined]
- |
- |-> Service Tenants - (3633754ac4c9be44b55bfe791b1780f1)
- |     [Type: Undefined]
- |     |
- |     |-> Operations v1 - (3633754ac4c9be44b55bfe791b1780f12429524fe7b6cc48a265a307407ec858)
- |     |     [Type: Service]
- |
- |-> Client Tenants - (75b9261673c2714681f14c97bc0439fb)
- |     [Type: Undefined]
- ```
-
-### Marain.Workflow
-
-As with `Marain.Operations`, the Workflow service has two functions; the Message Processing host and the Engine host. 
-
-For the Engine host, copy the `local.settings.template.json` file to `local.settings.json` then make the following modifications:
-
-- Set `TenancyClient:TenancyServiceBaseUri` to `http://localhost:7071`
-- Remove `TenancyClient:ResourceIdForMsiAuthentication`
-- Set `Operations:ControlServiceBaseUrl` to `http://localhost:7078`
-- Remove `Operations:ResourceIdForMsiAuthentication`
-
-Repeat for the Message Processing host, making the same changes. Ensure that `Workflow:EngineClient:BaseUrl` is set to `http://localhost:7075` and that `Workflow:EngineClient:ResourceIdForAuthentication` is blank or absent completely.
-
-The Solution can now be built and run either via Visual Studio or the `func start` command.
-
-Again, as with the Operations service, the Workflow service must have a corresponding Service Tenant created for it, which is done via the Marain.TenantManagement CLI tool using the following command, replacing the path to the service manifest with the appropriate path for your local environment:
-
-```
-marain create-service c:\git\Marain.Workflow\Solutions\ServiceManifests\WorkflowServiceManifest.jsonc
-```
-
-### Running all the functions together
-
-The script `Run-MarainServices.ps1`, found alongside this document, can be used to run all 5 of the Marain functions locally using the Azure Functions Core Tools. You will need to customise the paths to run it locally.
+which wraps the calls to the CLI.
 
 ## Creating and enrolling a client tenant
 
 Once you have your functions running, you will also need to create a Client tenant to access the functions, and enroll it to use those functions.
 
-The simplest way to do this is to use the `marain` tool:
+The simplest way to do this is to use the Marain.TenantManagement.CLI tool. Open a command prompt at `<BasePath>\Marain.TenantManagement\Solutions\Marain.TenantManagement.Cli\bin\Debug\netcoreapp3.1` and run:
 
 ```
 marain create-client "<client name here>"
@@ -146,20 +84,27 @@ marain create-client "<client name here>"
 
 This will return the Id of the new tenant, which you can then use to enroll it to use the Marain services.
 
-When enrolling, you need to provide a JSON file with the appropriate configuration for the tenant to use the service. Example files are found in the `Solutions\ServiceManifests\Configuration` folders of the Operations and Workflow services; these contain configuration that will set the services up to use the Storage and Cosmos emulators respectively.
+When enrolling, you need to provide a JSON file with the appropriate configuration for the tenant to use the service. Example files are found in the `Solutions\Marain.<Service>,Deployment\ServiceManifests\Configuration` folders of the Claims, Operations, and Workflow services; these contain configuration that will set the services up to use the Storage and Cosmos emulators respectively.
 
 To register your client tenant to use the services, use the following commands:
+
+### Claims
+
+```
+marain enroll <your client tenant Id> 3633754ac4c9be44b55bfe791b1780f1ca7153e8fbe1b54b9f44002217f1c51c
+--config "<BasePath>\Marain.Claims\Solutions\Marain.Claims.Deployment\ServiceManifests\Configuration\WorkflowConfigForStorageEmulator.json"
+```
 
 ### Workflow
 
 ```
 marain enroll <your client tenant Id> 3633754ac4c9be44b55bfe791b1780f177b464860334774cabb2f9d1b95b0c18
---config "C:\git\Marain.Workflow\Solutions\ServiceManifests\Configuration\WorkflowConfigForStorageEmulator.json"
+--config "<BasePath>\Marain.Workflow\Solutions\Marain.Workflow.Deployment\ServiceManifests\Configuration\WorkflowConfigForStorageEmulator.json"
 ```
 
 ### Operations
 
 ```
 marain enroll <your client tenant Id> 3633754ac4c9be44b55bfe791b1780f12429524fe7b6cc48a265a307407ec858
---config "C:\git\Marain.Operations\Solutions\ServiceManifests\Configuration\OperationsConfigForStorageEmulator.json"
+--config "<BasePath>\Marain.Operations\Solutions\Marain.Operations.Deployment\ServiceManifests\Configuration\OperationsConfigForStorageEmulator.json"
 ```

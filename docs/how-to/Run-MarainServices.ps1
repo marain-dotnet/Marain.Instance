@@ -16,9 +16,8 @@ $hosts | ForEach-Object {
     $name = $_.name
     $port = $_.port
 
-    Start-Process `
+    Start-Process pwsh `
         -WorkingDirectory (Join-Path $BasePath "$service\Solutions\$name\bin\Debug\netcoreapp3.1") `
-        -FilePath "func.cmd" `
-        -ArgumentList "start","--port $port" `
+        -ArgumentList "-command `$a`=(get-host).ui.rawui;`$a.windowtitle`='$name';func.cmd start --port $port"
         -RedirectStandardError (Join-Path $BasePath "$name.stderr.txt")
 }

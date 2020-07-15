@@ -17,7 +17,7 @@ To run any of the services locally, you need to do the following:
 4. For multi-tenanted services, create the appropriate service registrations in your local instance of `Marain.Tenancy`.
 5. Create a client tenant to use when calling services.
 
-Since you'll be running multiple services, it's preferable to do so without needing an instance of Visual Studio open for each one. As long as you don't need them running in Debug mode, you can do this using the Azure Functions Core Tools (if you don't have them installed, do so now from npm - https://www.npmjs.com/package/azure-functions-core-tools).
+Since you'll be running multiple services, it's preferable to do so without needing an instance of Visual Studio open for each one. As long as you don't need them running in Debug mode, you can do this using the Azure Functions Core Tools (v3). If you don't have them installed, do so now from npm - https://www.npmjs.com/package/azure-functions-core-tools - if you do have them installed already, you can update using `npm update -g azure-functions-core-tools@3`. Note that the version of the tools that Visual Studio keeps up to date is a different one from this, so they can drift apart.
 
 Before starting, ensure you have the Azure Storage emulator running - when running services locally, the easiest option for the Tenancy and Operations services is to store their data using the emulator. For the Workflow service, the simplest solution is to use the Cosmos DB emulator. You can however use "real" storage in Azure if you prefer. 
 

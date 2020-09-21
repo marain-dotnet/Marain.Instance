@@ -21,7 +21,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 4
 
 $marainGlobalToolName = 'marain'
-$marainGlobalToolVersion = '0.1.0-cli-as-global-tool.21'
+$marainGlobalToolVersion = '1.1.2'
 
 class MarainInstanceDeploymentContext {
     MarainInstanceDeploymentContext(

@@ -20,5 +20,9 @@
     "Marain.Claims": {
         "gitHubProject": "marain-dotnet/Marain.Claims",
         "apiPrefix": "claims"
+    },
+    "Marain.UserNotifications": {
+        "gitHubProject": "marain-dotnet/Marain.UserNotifications",
+        "apiPrefix": "notifications"
     }
 }

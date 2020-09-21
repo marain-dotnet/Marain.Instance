@@ -9,11 +9,11 @@
       "release": "1.0.0"
     },
     "Marain.Workflow": {
-      "omit": true,
+      "omit": false,
       "release": "0.2.0"
     },
     "Marain.Claims": {
-      "omit": true,
+      "omit": false,
       "release": "1.2.0"
     },
     "Marain.UserNotifications": {

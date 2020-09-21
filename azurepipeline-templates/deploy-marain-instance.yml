@@ -37,6 +37,11 @@ steps:
             -SubscriptionId ${{ parameters.azureSubscriptionId }} `
             -InstanceManifest ${{ parameters.marainManifestPath }}/${{ parameters.marainInstanceType }}.json `
             -Prefix ${{ parameters.marainResourcePrefix }}
-    azurePowerShellVersion: latestVersion
+    # Temporarily force a downgrade of the AzurePowerShell cmdlets because (as of September 2020 and v4.6.0) a bug
+    # was introduced which breaks use of securestring with ARM templates:
+    # https://github.com/Azure/azure-powershell/issues/12792
+    # https://github.com/Azure/azure-powershell/issues/12819
+    # Once this issue is fixed, we should revert back to using the latest version of the cmdlets.
+    preferredAzurePowerShellVersion: '4.4.0'
     pwsh: true
     workingDirectory: ${{ parameters.workingDirectory }}

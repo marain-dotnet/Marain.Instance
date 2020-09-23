@@ -14,7 +14,9 @@ $groups = @(
     "tenancy"
     "operations"
     "workflow"
-    "instance"
+    "instance",
+    "claims",
+    "notifications"
 )
 $jobs = @()
 foreach ($g in $groups) {
@@ -34,7 +36,10 @@ $aadApps = @(
     "operationscontrol"
     "workfloweng"
     "workflowmi"
+    "claims"
     "tenantadmin"
+    "usrnotidel"
+    "usrnotimng"
 )
 foreach ($a in $aadApps) {
     $app = "{0}{1}{2}" -f $Prefix,  $EnvironmentSuffix, $a

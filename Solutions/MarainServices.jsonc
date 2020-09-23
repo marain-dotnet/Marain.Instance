@@ -23,6 +23,6 @@
     },
     "Marain.UserNotifications": {
         "gitHubProject": "marain-dotnet/Marain.UserNotifications",
-        "apiPrefix": "notifications"
+        "apiPrefix": "usrnoti"
     }
 }

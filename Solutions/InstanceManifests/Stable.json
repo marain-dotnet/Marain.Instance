@@ -13,7 +13,6 @@
       "release": "1.2.0"
     },
     "Marain.UserNotifications": {
-      "omit": true,
       "release": "0.1.4"
     }
   }

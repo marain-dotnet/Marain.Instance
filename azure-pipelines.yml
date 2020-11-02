@@ -89,30 +89,10 @@ stages:
               marainResourcePrefix: $(Marain_ResourcePrefix)
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
 
-- stage: Tag_Build
-  displayName: Tag successful build
+- stage: Cleardown_test_deploynent
+  displayName: Cleardown test deployment
   jobs:
-  - job:
-    displayName: Tag sources
-    pool:
-      vmImage: 'windows-latest'
-    steps:
-    - template: templates/install.dotnet-global-tools.workaround.yml@recommended_practices
-    - template: templates/install-and-run-gitversion.yml@recommended_practices
-    - powershell: |
-        Write-Host "##vso[task.setvariable variable=Endjin_IsPreRelease]$((-not ([string]::IsNullOrEmpty($Env:GITVERSION_PRERELEASETAG))))"
-        Write-Host "##vso[task.setvariable variable=Endjin_Repository_Name]$Env:BUILD_REPOSITORY_NAME"
-      displayName: 'Set Custom Environment Variables'
-    - task: GitHubTag@1
-      condition: and(succeeded(), or(variables['Endjin.ForcePublish'], eq(variables['GitVersion.PreReleaseTag'], '')))
-      displayName: 'Tag Git'
-      inputs:
-        githubEndpoint: 'marain-github'
-        repositoryName: $(Endjin_Repository_Name)
-        commmit: 'Release v$(GitVersion.SemVer)'
-        tag: '$(GitVersion.SemVer)'
-  - job:
-    displayName: Cleardown test deployment
+  - displayName: Cleardown test deployment
     pool:
       vmImage: 'ubuntu-latest'
     steps:

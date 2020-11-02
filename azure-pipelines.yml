@@ -89,10 +89,11 @@ stages:
               marainResourcePrefix: $(Marain_ResourcePrefix)
               workingDirectory: $(Pipeline.Workspace)/marain_instance/Marain.Instance.Deployment
 
-- stage: Cleardown_test_deploynent
+- stage: Cleardown_Test_Deploynent
   displayName: Cleardown test deployment
   jobs:
-  - displayName: Cleardown test deployment
+  - job: cleardown_test_deploynent
+    displayName: Cleardown test deployment
     pool:
       vmImage: 'ubuntu-latest'
     steps:

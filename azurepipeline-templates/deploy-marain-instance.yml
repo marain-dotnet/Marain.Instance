@@ -5,7 +5,7 @@ parameters:
   azureLocation:
   marainEnvironmentSuffix:
   marainManifestPath: "../InstanceManifests"
-  marainReleaseChannel:
+  marainInstanceType:
   marainResourcePrefix:
   workingDirectory:
     

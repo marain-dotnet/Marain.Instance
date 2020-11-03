@@ -1,13 +1,13 @@
 {
   "services": {
     "Marain.Tenancy": {
-      "release": "1.0.1"
+      "release": "1.0.2"
     },
     "Marain.Operations": {
-      "release": "1.0.0"
+      "release": "1.0.1"
     },
     "Marain.Workflow": {
-      "release": "0.2.0"
+      "release": "0.2.1"
     },
     "Marain.Claims": {
       "release": "1.2.3"

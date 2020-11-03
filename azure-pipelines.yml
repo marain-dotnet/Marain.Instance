@@ -3,7 +3,7 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-name: CI
+name: PR checks
 
 resources:
   repositories:
@@ -12,14 +12,9 @@ resources:
       name: endjin/Endjin.RecommendedPractices.AzureDevopsPipelines.GitHub
       endpoint: marain-github
 
-trigger:
-  branches:
-    include:
-    - master
-    - feature/*
-  tags:
-    include:
-    - '*'
+trigger: none
+pr:
+- master
 
 variables:
   Endjin_AzureLocation: northeurope

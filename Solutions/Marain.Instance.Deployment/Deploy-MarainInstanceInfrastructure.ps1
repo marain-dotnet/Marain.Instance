@@ -23,6 +23,94 @@ Set-StrictMode -Version 4
 $marainGlobalToolName = 'marain'
 $marainGlobalToolVersion = '1.1.2'
 
+#
+# azure-cli helper functions
+function Invoke-AzCli
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string] $Command,
+        
+        [switch] $AsJson,
+        
+        [array] $ExpectedExitCodes = @(0)
+    )
+
+    $cmd = "az $command"
+    if ($asJson) { $cmd = "$cmd -o json" }
+    Write-Verbose "azcli cmd: $cmd"
+    
+    $ErrorActionPreference = 'Continue'     # azure-cli can sometimes write warnings to STDERR, which PowerShell treats as an error
+    $res = Invoke-Expression $cmd
+    
+    $ErrorActionPreference = 'Stop'
+    if ($expectedExitCodes -inotcontains $LASTEXITCODE) {
+        Write-Error "azure-cli failed with exit code: $LASTEXITCODE"
+    }
+
+    if ($asJson) {
+        return ($res | ConvertFrom-Json -Depth 30 -AsHashtable)
+    }
+}
+function Invoke-AzCliRestCommand
+{
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string] $Uri,
+        
+        [Parameter()]
+        [ValidateSet("DELETE", "GET", "PATCH", "POST", "PUT")]
+        [string] $Method = "GET",
+        
+        [Parameter()]
+        [hashtable] $Body,
+        
+        [Parameter()]
+        [hashtable] $Headers
+    )
+
+    if (@("GET", "DELETE") -contains $Method) {
+        $uriEscaped = $Uri.Replace("'", "''")
+
+        $response = Invoke-AzCli -Command "rest --uri '$uriEscaped' --method '$Method'" -AsJson
+
+        return $response
+    }
+    else {
+        $bodyAsEscapedJsonString = (ConvertTo-Json $Body -Depth 30 -Compress).replace('"', '\"').replace(':\', ': \').replace("'", "''")
+        $headersAsEscapedJsonString = (ConvertTo-Json $Headers -Compress).replace('"', '\"').replace(':\', ': \').replace("'", "''")
+
+        $response = Invoke-AzCli -Command "rest --uri '$Uri' --method '$Method' --body '$bodyAsEscapedJsonString' --headers '$headersAsEscapedJsonString'" -AsJson
+
+        return $response
+    }
+}
+
+function Test-AzureGraphAccess
+{
+    [CmdletBinding()]
+    param
+    (
+    )
+
+    # perform an arbitrary AAD operation to see if we have read access to the graph API
+    try {
+        Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction Stop
+    }
+    catch {
+        if ($_.Exception.Message -match "Insufficient privileges") {
+            return $False
+        }
+        else {
+            throw $_
+        }
+    }
+
+    return $True
+}
+
 class MarainInstanceDeploymentContext {
     MarainInstanceDeploymentContext(
         [string]$AzureLocation,
@@ -42,6 +130,7 @@ class MarainInstanceDeploymentContext {
         $this.AadAppIds = $AadAppIds
         $this.InstanceApps = @{}
         $this.DoNotUseGraph = $DoNotUseGraph
+        $this.GraphAccess = $false
 
         # Note, we're using the Az module here.
         # If this fails ensure you run:
@@ -49,17 +138,8 @@ class MarainInstanceDeploymentContext {
         # and if that is unavailable, do this first:
         #   Install-Module Az
         if (-not $DoNotUseGraph) {
-            $AzContext = Get-AzContext
-            $AadGraphApiResourceId = "https://graph.windows.net/"
-
-            # service principals with a graph tokens appear unassociated with a tenant
-            $GraphToken = $AzContext.TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
-            if ($GraphToken) {
-                $AuthToken = $GraphToken.AccessToken
-                $AuthHeaderValue = "Bearer $AuthToken"
-                $this.GraphHeaders = @{"Authorization" = $AuthHeaderValue; "Content-Type"="application/json"}
-            }
-            else {
+            $this.GraphAccess = Test-AzureGraphAccess
+            if (!this.GraphAccess) {
                 Write-Host "No graph token available. AAD operations will not be performed."
             }
         }
@@ -271,7 +351,7 @@ class MarainServiceDeploymentContext {
     {
         $AppNameWithSuffix = $this.AppName + $AppNameSuffix
 
-        if (-not $this.InstanceContext.GraphHeaders) {
+        if (-not $this.InstanceContext.GraphAccess) {
             $AppId = $this.InstanceContext.AadAppIds[$AppNameWithSuffix]
             if (-not $AppId) {
                 Write-Error "AppId for $AppNameWithSuffix was not supplied in AadAppIds argument, and access to the Azure AD graph is not available (which it will not be when running on a build agent). Either run this in a context where graph access is available, or pass this app id in as an argument." 
@@ -497,38 +577,22 @@ class MarainServiceDeploymentContext {
         $TargetAccessControlServicePrincipalId = $TargetSp.Id
 
         Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-        $RequestBody = "{'appRoleId': '$TargetAppRoleId','principalId': '$ClientIdentityServicePrincipalId','resourceId': '$TargetAccessControlServicePrincipalId'}"
-        Write-Host $RequestBody
+        $RequestBody = @{
+            appRoleId = $TargetAppRoleId
+            principalId = $ClientIdentityServicePrincipalId
+            resourceId = $TargetAccessControlServicePrincipalId
+        }
+        Write-Host ($RequestBody | ConvertTo-Json)
         
-        # az rest --method post --uri https://graph.microsoft.com/beta/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments --body $RequestBody --headers "Content-Type=application/json"
-        # if ($LASTEXITCODE -ne 0) {
-        #     Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId"
-        # }
-
-        # Test AzureAD.Standard.Preview module
-        # install AzureAD Standard (preview) module
-        if ( !(Get-PackageSource -Name 'Posh Test Gallery' -ErrorAction SilentlyContinue) ) {
-            Register-PackageSource -Trusted -ProviderName 'PowerShellGet' -Name 'Posh Test Gallery' -Location 'https://www.poshtestgallery.com/api/v2/'
+        try {
+            $response = Invoke-AzCliRestCommand -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments" `
+                                                -Method "POST" `
+                                                -Body $RequestBody `
+                                                -Headers @{"Content-Type" = "application/json"}
         }
-        if ( !(Get-Module 'AzureAD.Standard.Preview' -ListAvailable -ErrorAction SilentlyContinue) ) {
-            Install-Module -Name AzureAD.Standard.Preview -Force -Scope CurrentUser -SkipPublisherCheck -AllowClobber
+        catch {
+            Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId"
         }
-        $aadModule = Get-Module -ListAvailable AzureAD.Standard.Preview
-
-        $ctx = Get-AzContext
-        $AadGraphApiResourceId = "https://graph.windows.net/"
-        $GraphToken = $ctx.TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $this.InstanceContext.TenantId) -and $_.Resource -eq $AadGraphApiResourceId }
-        # we need to run the AzureAD module in a different process due to assembly version mismatches with Az module
-        $script = @(
-            "Import-Module $($aadModule.Path) -Passthru | Format-List"
-            "Connect-AzureAD -AccountId $($ctx.Subscription) -TenantId $($ctx.Tenant) -AadAccessToken $($GraphToken.AccessToken)"
-            "`$existing = (Get-AzureADServiceAppRoleAssignment -ObjectId $TargetAccessControlServicePrincipalId | Where { `$_.PrincipalId -eq '$ClientIdentityServicePrincipalId' -and `$_.Id -eq '$TargetAppRoleId' })"
-            "Write-Host ('DEBUG: >{0}<' -f `$existing)"
-            "if (`$null -eq `$existing) { Write-Host '`tRole assignment required...'; try { New-AzureADServiceAppRoleAssignment -ObjectId $ClientIdentityServicePrincipalId -PrincipalId $ClientIdentityServicePrincipalId -ResourceId $TargetAccessControlServicePrincipalId -Id $TargetAppRoleId -ErrorAction Stop } catch { Write-Host ('WARNING: Potential error during role assignment: {0}' -f `$_.Exception.Message) } }"
-        )
-        Write-Host "Checking role assignment $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-        $sb = [scriptblock]::Create($script -join "; ")
-        $(& pwsh -NonInteractive -Command $sb) | Out-Null
     }
 
 
@@ -633,7 +697,8 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
         $this.ObjectId = $objectId
 
         $this.GraphApiAppUri = ("https://graph.windows.net/{0}/applications/{1}?api-version=1.6" -f $this.InstanceDeploymentContext.TenantId, $objectId)
-        $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
+        $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
+                                            -Headers @{"Content-Type" = "application/json"}
         $this.Manifest = ConvertFrom-Json $Response.Content
     }
 
@@ -667,10 +732,13 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
 
         if ($MadeChange) {
             $PatchRequiredResourceAccess = @{requiredResourceAccess=$RequiredResourceAccess}
-            $PatchRequiredResourceAccessJson = ConvertTo-Json $PatchRequiredResourceAccess -Depth 4
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Method "PATCH" -Headers $this.InstanceDeploymentContext.GraphHeaders -Body $PatchRequiredResourceAccessJson
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
-            $this.Manifest = ConvertFrom-Json $Response.Content
+            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
+                                                -Method "PATCH" `
+                                                -Body $PatchRequiredResourceAccess
+                                                -Headers @{"Content-Type" = "application/json"}
+            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
+                                                -Headers @{"Content-Type" = "application/json"}
+            $this.Manifest = $Response
         }
     }
 
@@ -699,9 +767,12 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
             $AppRoles = $this.Manifest.appRoles + $AppRole
     
             $PatchAppRoles = @{appRoles=$AppRoles}
-            $PatchAppRolesJson = ConvertTo-Json $PatchAppRoles -Depth 4
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Method "PATCH" -Headers $this.InstanceDeploymentContext.GraphHeaders -Body $PatchAppRolesJson
-            $Response = Invoke-WebRequest -Uri $this.GraphApiAppUri -Headers $this.InstanceDeploymentContext.GraphHeaders
+            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
+                                                -Method "PATCH" `
+                                                -Body $PatchAppRoles
+                                                -Headers @{"Content-Type" = "application/json"}
+            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
+                                                -Headers @{"Content-Type" = "application/json"}
             $this.Manifest = ConvertFrom-Json $Response.Content
         }
     }
@@ -768,12 +839,7 @@ try {
     }
     & az account set --subscription $SubscriptionId | Out-Null
 
-    # perform an arbitrary AAD operation to force getting a graph api token
-    $AadGraphApiResourceId = "https://graph.windows.net/"
-    Get-AzADApplication -ApplicationId (New-Guid).Guid -ErrorAction SilentlyContinue | Out-Null
-    # service principals with a graph tokens appear unassociated with a tenant
-    $GraphToken = (Get-AzContext).TokenCache.ReadItems() | Where-Object { (!($_.TenantId) -or $_.TenantId -eq $AadTenantId) -and $_.Resource -eq $AadGraphApiResourceId }
-    if (!$GraphToken) {
+    if (!(Test-AzureGraphAccess)) {
         Write-Warning "No graph token available. AAD operations will not be performed."
         $DoNotUseGraph = $True
     }

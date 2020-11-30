@@ -592,34 +592,29 @@ class MarainServiceDeploymentContext {
         $TargetSp = Get-AzADServicePrincipal -ApplicationId $TargetAppId
         $TargetAccessControlServicePrincipalId = $TargetSp.Id
        
-        try {
-            # Switch back to the Azure Graph API so we have a consistent permissions model across the
-            # rest of the automated process - we should migrate to use MS Graph for all AAD integration
-            # as part of a future major update
-            $getUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignedTo?api-version=1.6"
-            $response = Invoke-AzCliRestCommand -Uri $getUri
-            $existing = $response.value
-            if ($existing.id -contains $TargetAppRoleId) {
-                Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-            }
-            else {
-                Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-
-                $RequestBody = @{
-                    id = $TargetAppRoleId
-                    principalId = $ClientIdentityServicePrincipalId
-                    resourceId = $TargetAccessControlServicePrincipalId
-                }
-                Write-Host ($RequestBody | ConvertTo-Json)
-
-                $setUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments?api-version=1.6"
-                $response = Invoke-AzCliRestCommand -Uri $setUri `
-                                                    -Method "POST" `
-                                                    -Body $RequestBody
-            }
+        # Switch back to the Azure Graph API so we have a consistent permissions model across the
+        # rest of the automated process - we should migrate to use MS Graph for all AAD integration
+        # as part of a future major update
+        $getUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignedTo?api-version=1.6"
+        $response = Invoke-AzCliRestCommand -Uri $getUri
+        $existing = $response.value
+        if ($existing.id -contains $TargetAppRoleId) {
+            Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         }
-        catch {
-            Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId"
+        else {
+            Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+
+            $RequestBody = @{
+                id = $TargetAppRoleId
+                principalId = $ClientIdentityServicePrincipalId
+                resourceId = $TargetAccessControlServicePrincipalId
+            }
+            Write-Host ($RequestBody | ConvertTo-Json)
+
+            $setUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments?api-version=1.6"
+            $response = Invoke-AzCliRestCommand -Uri $setUri `
+                                                -Method "POST" `
+                                                -Body $RequestBody
         }
     }
 

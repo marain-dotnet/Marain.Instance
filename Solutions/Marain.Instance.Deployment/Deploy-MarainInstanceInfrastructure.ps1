@@ -18,6 +18,7 @@ Param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'       # the progress message output can mask part of the error handling output
 Set-StrictMode -Version 4
 
 $marainGlobalToolName = 'marain'
@@ -42,12 +43,21 @@ function Invoke-AzCli
     Write-Verbose "azcli cmd: $cmd"
     
     $ErrorActionPreference = 'Continue'     # azure-cli can sometimes write warnings to STDERR, which PowerShell treats as an error
-    $res = Invoke-Expression $cmd
+    $azCliStdErr = $null
+    $res = Invoke-Expression $cmd -ErrorVariable azCliStdErr
     
+    $diagnosticInfo = @"
+StdOut:
+$res
+StdErr:
+$azCliStdErr
+"@
     $ErrorActionPreference = 'Stop'
     if ($expectedExitCodes -inotcontains $LASTEXITCODE) {
-        Write-Error "azure-cli failed with exit code: $LASTEXITCODE"
+        Write-Error "azure-cli failed with exit code: $LASTEXITCODE`nDiagnostic information follows:`nCommand: $cmd`n$diagnosticInfo"
     }
+
+    Write-Verbose $diagnosticInfo
 
     if ($asJson) {
         return ($res | ConvertFrom-Json -Depth 30 -AsHashtable)
@@ -68,8 +78,13 @@ function Invoke-AzCliRestCommand
         [hashtable] $Body,
         
         [Parameter()]
-        [hashtable] $Headers
+        [hashtable] $Headers = @{}
     )
+
+    # Ensure we always have the 'Content-Type' header
+    if ( !$Headers.ContainsKey("Content-Type") ) {
+        $Headers += @{ "Content-Type" = "application/json" }
+    }
 
     if (@("GET", "DELETE") -contains $Method) {
         $uriEscaped = $Uri.Replace("'", "''")
@@ -139,7 +154,7 @@ class MarainInstanceDeploymentContext {
         #   Install-Module Az
         if (-not $DoNotUseGraph) {
             $this.GraphAccess = Test-AzureGraphAccess
-            if (!this.GraphAccess) {
+            if (!$this.GraphAccess) {
                 Write-Host "No graph token available. AAD operations will not be performed."
             }
         }
@@ -160,6 +175,7 @@ class MarainInstanceDeploymentContext {
     [Hashtable]$AadAppIds
     [Hashtable]$InstanceApps
     [bool]$DoNotUseGraph
+    [bool]$GraphAccess
 
     [string]$DeploymentStagingResourceGroupName
     [string]$DeploymentStagingStorageAccountName
@@ -575,20 +591,32 @@ class MarainServiceDeploymentContext {
         # Service Principal.
         $TargetSp = Get-AzADServicePrincipal -ApplicationId $TargetAppId
         $TargetAccessControlServicePrincipalId = $TargetSp.Id
-
-        Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-        $RequestBody = @{
-            appRoleId = $TargetAppRoleId
-            principalId = $ClientIdentityServicePrincipalId
-            resourceId = $TargetAccessControlServicePrincipalId
-        }
-        Write-Host ($RequestBody | ConvertTo-Json)
-        
+       
         try {
-            $response = Invoke-AzCliRestCommand -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments" `
-                                                -Method "POST" `
-                                                -Body $RequestBody `
-                                                -Headers @{"Content-Type" = "application/json"}
+            # Switch back to the Azure Graph API so we have a consistent permissions model across the
+            # rest of the automated process - we should migrate to use MS Graph for all AAD integration
+            # as part of a future major update
+            $getUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignedTo?api-version=1.6"
+            $response = Invoke-AzCliRestCommand -Uri $getUri
+            $existing = $response.value
+            if ($existing -contains $TargetAppRoleId) {
+                Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+            }
+            else {
+                Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+
+                $RequestBody = @{
+                    id = $TargetAppRoleId
+                    principalId = $ClientIdentityServicePrincipalId
+                    resourceId = $TargetAccessControlServicePrincipalId
+                }
+                Write-Host ($RequestBody | ConvertTo-Json)
+
+                $setUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments?api-version=1.6"
+                $response = Invoke-AzCliRestCommand -Uri $setUri `
+                                                    -Method "POST" `
+                                                    -Body $RequestBody
+            }
         }
         catch {
             Write-Error "Unable to assign role $TargetAppRoleId for app $TargetAppId"
@@ -697,9 +725,8 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
         $this.ObjectId = $objectId
 
         $this.GraphApiAppUri = ("https://graph.windows.net/{0}/applications/{1}?api-version=1.6" -f $this.InstanceDeploymentContext.TenantId, $objectId)
-        $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
-                                            -Headers @{"Content-Type" = "application/json"}
-        $this.Manifest = ConvertFrom-Json $Response.Content
+        $response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri
+        $this.Manifest = $response
     }
 
     [string]$ObjectId
@@ -735,9 +762,7 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
             $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
                                                 -Method "PATCH" `
                                                 -Body $PatchRequiredResourceAccess
-                                                -Headers @{"Content-Type" = "application/json"}
-            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
-                                                -Headers @{"Content-Type" = "application/json"}
+            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri
             $this.Manifest = $Response
         }
     }
@@ -770,10 +795,8 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
             $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
                                                 -Method "PATCH" `
                                                 -Body $PatchAppRoles
-                                                -Headers @{"Content-Type" = "application/json"}
-            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
-                                                -Headers @{"Content-Type" = "application/json"}
-            $this.Manifest = ConvertFrom-Json $Response.Content
+            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri
+            $this.Manifest = $Response
         }
     }
 }
@@ -924,7 +947,8 @@ try {
     }
 
     if (-not $InstanceDeploymentContext.KeyVaultName) {
-        # TODO: shouldn't be more than 1 keyvault
+        # This currently throws a deprecation warning, since Az PowerShell v4.6.1, but we are not using the
+        # 'SecretValueText' property that the message says is being removed in a later version.
         $keyVault = Get-AzKeyVault -ResourceGroupName $InstanceResourceGroupName | Select -First 1
         $InstanceDeploymentContext.KeyVaultName = $keyVault.VaultName
     }

@@ -644,9 +644,9 @@ class MarainServiceDeploymentContext {
         $getUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignedTo?api-version=1.6"
         $response = Invoke-AzCliRestCommand -Uri $getUri
         Write-Host "DEBUG: $($response | ConvertTo-Json -Depth 30)"
-        [array]$existingRoleAssignments = $response.value | Select-Object id | Format-Table -HideTableHeaders       # returns array of values, rather than array of objects with an 'id' property
-        Write-Host "Existing role assignments (by roleId): '$($existingRoleAssignments -join ',')'"
-        if ($TargetAppRoleId -in $existingRoleAssignments) {
+        $existingRoleAssignment = $response.value | Where-Object { $_.id -eq $TargetAppRoleId }
+        Write-Host "Existing role assignment: $($existingRoleAssignment.id)"
+        if ($existingRoleAssignment) {
             Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         }
         else {

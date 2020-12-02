@@ -645,7 +645,7 @@ class MarainServiceDeploymentContext {
         $response = Invoke-AzCliRestCommand -Uri $getUri
         Write-Host "DEBUG: $($response | ConvertTo-Json -Depth 30)"
         $existingRoleAssignment = $response.value | Where-Object { $_.id -eq $TargetAppRoleId }
-        Write-Host "Existing role assignment: $($existingRoleAssignment.id)"
+        Write-Host "Existing role assignment: $existingRoleAssignment"
         if ($existingRoleAssignment) {
             Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
         }

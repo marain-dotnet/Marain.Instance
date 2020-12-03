@@ -643,7 +643,7 @@ class MarainServiceDeploymentContext {
         # as part of a future major update
         $getUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignedTo?api-version=1.6"
         $response = Invoke-AzCliRestCommand -Uri $getUri
-        Write-Host "DEBUG: $($response | ConvertTo-Json -Depth 30)"
+        Write-Host "DEBUG: $getUri `n'$($response | ConvertTo-Json -Depth 30)'"
         $existingRoleAssignment = $response.value | Where-Object { $_.id -eq $TargetAppRoleId }
         Write-Host "Existing role assignment: $existingRoleAssignment"
         if ($existingRoleAssignment) {

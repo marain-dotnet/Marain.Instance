@@ -43,8 +43,7 @@ function Invoke-AzCli
     Write-Verbose "azcli cmd: $cmd"
     
     $ErrorActionPreference = 'Continue'     # azure-cli can sometimes write warnings to STDERR, which PowerShell treats as an error
-    $azCliStdErr = $null
-    $res = Invoke-Expression $cmd -ErrorVariable azCliStdErr
+    $res = Invoke-Expression "$cmd 2>''" -ErrorVariable azCliStdErr
     
     $diagnosticInfo = @"
 StdOut:
@@ -641,28 +640,30 @@ class MarainServiceDeploymentContext {
         # Switch back to the Azure Graph API so we have a consistent permissions model across the
         # rest of the automated process - we should migrate to use MS Graph for all AAD integration
         # as part of a future major update
-        $getUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignedTo?api-version=1.6"
-        $response = Invoke-AzCliRestCommand -Uri $getUri
-        Write-Host "DEBUG: $getUri `n'$($response | ConvertTo-Json -Depth 30)'"
-        $existingRoleAssignment = $response.value | Where-Object { $_.id -eq $TargetAppRoleId }
-        Write-Host "Existing role assignment: $existingRoleAssignment"
-        if ($existingRoleAssignment) {
-            Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+        $RequestBody = @{
+            id = $TargetAppRoleId
+            principalId = $ClientIdentityServicePrincipalId
+            resourceId = $TargetAccessControlServicePrincipalId
         }
-        else {
-            Write-Host "Assigning role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+        Write-Host ($RequestBody | ConvertTo-Json)
 
-            $RequestBody = @{
-                id = $TargetAppRoleId
-                principalId = $ClientIdentityServicePrincipalId
-                resourceId = $TargetAccessControlServicePrincipalId
-            }
-            Write-Host ($RequestBody | ConvertTo-Json)
+        $uri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments?api-version=1.6"
 
-            $setUri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments?api-version=1.6"
-            $response = Invoke-AzCliRestCommand -Uri $setUri `
+        # It proved problematic to get consistent results when querying existing role membership in a pipeline, so 
+        # now we just ignore the 'role already assigned' error
+        try {
+            $response = Invoke-AzCliRestCommand -Uri $uri `
                                                 -Method "POST" `
                                                 -Body $RequestBody
+            Write-Host "Assigned role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+        }
+        catch {
+            if ($_.Exception.Message -match 'Permission being assigned already exists on the object') {
+                Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+            }
+            else {
+                throw $_
+            }
         }
     }
 

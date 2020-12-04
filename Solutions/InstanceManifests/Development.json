@@ -2,7 +2,7 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "1.0.3-marain-cli-retry.9"
+      "release": "1.0.3"
     },
     "Marain.Operations": {
       "omit": false,

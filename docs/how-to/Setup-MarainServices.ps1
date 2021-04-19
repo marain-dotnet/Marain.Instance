@@ -29,6 +29,12 @@ $MarainServices = @(
         ) 
     },
     @{ 
+        name     = "Marain.TenantManagement"; 
+        projects = @(
+            @{ name = "Marain.TenantManagement.Cli"; type = "cliTool" }
+        ) 
+    },
+    @{ 
         name     = "Marain.Claims"; 
         projects = @(
             @{ name = "Marain.Claims.Host.Functions"; type = "functionsHost" }
@@ -47,11 +53,12 @@ $MarainServices = @(
             @{ name = "Marain.Workflow.Api.EngineHost"; type = "functionsHost" }, 
             @{ name = "Marain.Workflow.Api.MessageProcessingHost"; type = "functionsHost" }
         ) 
-    }
+    },
     @{ 
-        name     = "Marain.TenantManagement"; 
+        name     = "Marain.UserNotifications"; 
         projects = @(
-            @{ name = "Marain.TenantManagement.Cli"; type = "cliTool" }
+            @{ name = "Marain.UserNotifications.Management.Host"; type = "functionsHost" }, 
+            @{ name = "Marain.UserNotifications.ApiDeliveryChannel.Host"; type = "functionsHost" }
         ) 
     }
 )
@@ -76,7 +83,7 @@ $MarainServices | ForEach-Object {
                 $settings = Join-Path $projDir "appsettings.json"
             }
             Default {
-                throw "Unknown proejct type."
+                throw "Unknown project type."
             }
         }
        
@@ -95,19 +102,21 @@ $MarainServices | ForEach-Object {
                 $values = $settingsJson
             }
             Default {
-                throw "Unknown proejct type."
+                throw "Unknown project type."
             }
         }
 
         updatePropertyIfExists $values "AzureServicesAuthConnectionString" ""
         updatePropertyIfExists $values "TenancyClient:TenancyServiceBaseUri" "http://localhost:7071"
+        updatePropertyIfExists $values "TenancyClient__TenancyServiceBaseUri" "http://localhost:7071"
         updatePropertyIfExists $values "TenancyClient:ResourceIdForMsiAuthentication" ""
+        updatePropertyIfExists $values "TenancyClient__ResourceIdForMsiAuthentication" ""
         updatePropertyIfExists $values "Workflow:EngineClient:BaseUrl" "http://localhost:7075"
         updatePropertyIfExists $values "Workflow:EngineClient:ResourceIdForAuthentication" ""
         updatePropertyIfExists $values "Operations:ControlServiceBaseUrl" "http://localhost:7073"
         updatePropertyIfExists $values "Operations:ResourceIdForMsiAuthentication" ""
         updatePropertyIfExists $values "ExternalServices__OperationsStatus" "http://localhost:7072"
-
+ 
         $settingsJson | ConvertTo-Json -Depth 32 | Set-Content $settings
 
         dotnet build $csproj -c Debug

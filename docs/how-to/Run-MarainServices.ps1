@@ -8,7 +8,9 @@ $hosts = @(
     @{ service = "Marain.Operations"; name = "Marain.Operations.ControlHost.Functions"; port = 7078 },
     @{ service = "Marain.Operations"; name = "Marain.Operations.StatusHost.Functions"; port = 7077 },
     @{ service = "Marain.Workflow"; name = "Marain.Workflow.Api.EngineHost"; port = 7075 },
-    @{ service = "Marain.Workflow"; name = "Marain.Workflow.Api.MessageProcessingHost"; port = 7073 }
+    @{ service = "Marain.Workflow"; name = "Marain.Workflow.Api.MessageProcessingHost"; port = 7073 },
+    @{ service = "Marain.UserNotifications"; name = "Marain.UserNotifications.Management.Host"; port = 7080 },
+    @{ service = "Marain.UserNotifications"; name = "Marain.UserNotifications.ApiDeliveryChannel.Host"; port = 7081 }
 )
 
 $hosts | ForEach-Object {
@@ -18,6 +20,6 @@ $hosts | ForEach-Object {
 
     Start-Process pwsh `
         -WorkingDirectory (Join-Path $BasePath "$service\Solutions\$name\bin\Debug\netcoreapp3.1") `
-        -ArgumentList "-command `$a`=(get-host).ui.rawui;`$a.windowtitle`='$name';func.cmd start --port $port"
+        -ArgumentList "-command `$a`=(get-host).ui.rawui;`$a.windowtitle`='$name';func.cmd start --port $port" `
         -RedirectStandardError (Join-Path $BasePath "$name.stderr.txt")
 }

@@ -9,3 +9,4 @@ $marainTenantManagementCliExe = Join-Path $BasePath "\Marain.TenantManagement\So
 . $marainTenantManagementCliExe create-service (Join-Path $BasePath "Marain.Claims\Solutions\Marain.Claims.Deployment\ServiceManifests\ClaimsServiceManifest.jsonc")
 . $marainTenantManagementCliExe create-service (Join-Path $BasePath "Marain.Operations\Solutions\Marain.Operations.Deployment\ServiceManifests\OperationsServiceManifest.jsonc")
 . $marainTenantManagementCliExe create-service (Join-Path $BasePath "Marain.Workflow\Solutions\Marain.Workflow.Deployment\ServiceManifests\WorkflowServiceManifest.jsonc")
+. $marainTenantManagementCliExe create-service (Join-Path $BasePath "Marain.UserNotifications\Solutions\Marain.UserNotifications.Deployment\ServiceManifests\UserNotificationsServiceManifest.jsonc")

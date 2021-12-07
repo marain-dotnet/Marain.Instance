@@ -47,7 +47,7 @@ function Invoke-AzCli
     $azCliErrorLog = New-TemporaryFile
     try {
 
-        $res = Invoke-Expression $CommandLine 2> $($azCliErrorLog.FullName)
+        $res = Invoke-Expression $cmd 2> $($azCliErrorLog.FullName)
         $azCliStdErr = Get-Content -Raw $azCliErrorLog
     }
     finally {

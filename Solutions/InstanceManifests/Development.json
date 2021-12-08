@@ -6,11 +6,11 @@
     },
     "Marain.Operations": {
       "omit": false,
-      "release": "1.2.2"
+      "release": "1.2.4"
     },
     "Marain.Workflow": {
       "omit": false,
-      "release": "0.2.8"
+      "release": "0.2.9"
     },
     "Marain.Claims": {
       "omit": false,

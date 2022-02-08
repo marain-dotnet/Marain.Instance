@@ -79,6 +79,8 @@ $armDeployment = @{
     TemplateParameters = @{
         resourceGroupName = $instanceResourceGroupName
         keyVaultName = $keyVaultName
+        keyVaultSecretsReadersGroupObjectId = $deploymentConfig.KeyVaultReadersGroupObjectId
+        keyVaultSecretsContributorsGroupObjectId = $deploymentConfig.KeyVaultContributorsGroupObjectId
 
         useExistingAppConfigurationStore = $deploymentConfig.UseExistingAppConfigurationStore
         appConfigurationStoreName = $appConfigStoreName

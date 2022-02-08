@@ -5,6 +5,10 @@
 #
 @{
     AzureLocation = "northeurope"
+
+    # Two AzureAD security groups can be used to control read & read/write access to key vault
+    KeyVaultReadersGroupObjectId = ""
+    KeyVaultContributorsGroupObjectId = ""
     
     # Name overrides (otherwise names will be generated based on stack, instance & environment details)
     InstanceResourceGroupName = ""

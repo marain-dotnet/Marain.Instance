@@ -34,7 +34,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 }
 
 // ContainerApp hosting environment
-module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment:0.1.0-beta.02' = if (useContainerApps) {
+module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment_with_config_publish:0.1.0-beta.02' = if (useContainerApps) {
   scope: resourceGroup(appEnvironmentSubscriptionId, appEnvironmentResourceGroupName)
   name: 'containerAppEnv'
   params: {
@@ -55,7 +55,6 @@ module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_
 
 // Ensure an AppInsights workspace is provisioned when not hosting in Azure ContainerApps
 module non_app_environment_ai 'br:endjintestacr.azurecr.io/bicep/modules/app_insights_with_config_publish:0.1.0-beta.02' = if (!useContainerApps) {
-  scope: rg
   name: 'appInsights'
   params:{
     name: '${appEnvironmentName}ai'

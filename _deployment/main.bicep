@@ -34,8 +34,8 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 }
 
 // ContainerApp hosting environment
-module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment_with_config_publish:0.1.0-beta.02' = if (useContainerApps) {
-  scope: resourceGroup(appEnvironmentSubscriptionId, appEnvironmentResourceGroupName)
+module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment_with_config_publish:0.1.0-beta.03' = if (useContainerApps) {
+  scope: rg //resourceGroup(appEnvironmentSubscriptionId, appEnvironmentResourceGroupName)
   name: 'containerAppEnv'
   params: {
     name: appEnvironmentName
@@ -54,23 +54,22 @@ module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_
 }
 
 // Ensure an AppInsights workspace is provisioned when not hosting in Azure ContainerApps
-module non_app_environment_ai 'br:endjintestacr.azurecr.io/bicep/modules/app_insights_with_config_publish:0.1.0-beta.02' = if (!useContainerApps) {
-  name: 'appInsights'
+// module non_app_environment_ai 'br:endjintestacr.azurecr.io/bicep/modules/app_insights_with_config_publish:0.1.0-beta.03' = if (!useContainerApps) {
+  module non_app_environment_ai '../../../Endjin.RecommendedPractices.Bicep/modules/public/app_insights_with_config_publish.bicep' = if (!useContainerApps) {
+  name: '${deployment().name}-appInsights'
   params:{
     name: '${appEnvironmentName}ai'
+    useExisting: false
     resourceGroupName: resourceGroupName
-    subscriptionId: subscription().subscriptionId
     location: location
     keyVaultName: key_vault.outputs.name
-    keyVaultResourceGroupName: resourceGroupName
-    keyVaultSubscriptionId: subscription().subscriptionId
-    // TODO: use existing pattern!
+    resourceTags: resourceTags
   }
 }
 
-module key_vault 'br:endjintestacr.azurecr.io/bicep/modules/key_vault_with_secrets_access_via_groups:0.1.0-beta.02' = {
+module key_vault 'br:endjintestacr.azurecr.io/bicep/modules/key_vault_with_secrets_access_via_groups:0.1.0-beta.03' = {
   scope: rg
-  name: 'keyVault'
+  name: 'keyVaultWithGroupsAccess'
   params: {
     name: keyVaultName
     enableDiagnostics: true
@@ -82,14 +81,14 @@ module key_vault 'br:endjintestacr.azurecr.io/bicep/modules/key_vault_with_secre
   }
 }
 
-module app_config 'br:endjintestacr.azurecr.io/bicep/modules/app_configuration_with_rg:0.1.0-beta.02' = if (!useExistingAppConfigurationStore) {
-  // Since this is subscription-scoped deployment give it a name that will make it obviously associated to this deployment
-  name: '${deployment().name}-appConfig'
+// module app_config 'br:endjintestacr.azurecr.io/bicep/modules/app_configuration:0.1.0-beta.03' = {
+module app_config '../../../Endjin.RecommendedPractices.Bicep/modules/public/app_configuration_with_rg.bicep' = {
+  name: '${deployment().name}-appConfiguration'
   params: {
     name: appConfigurationStoreName
-    resourceGroupName: appConfigurationStoreResourceGroupName
     location: location
     useExisting: useExistingAppConfigurationStore
+    resourceGroupName: appConfigurationStoreResourceGroupName
     resourceTags: resourceTags
   }
 }

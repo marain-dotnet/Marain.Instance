@@ -16,6 +16,11 @@ param appConfigurationStoreResourceGroupName string = resourceGroupName
 param appConfigurationStoreSubscription string = subscription().subscriptionId
 param appConfigurationLabel string
 
+param useExistingAppInsightsWorkspace bool = false
+param appInsightsWorkspaceName string = '${appEnvironmentName}ai'
+param appInsightsWorkspaceResourceGroupName string = resourceGroupName
+param appInsightsWorkspaceSubscription string = subscription().subscriptionId
+
 param location string = deployment().location
 param includeAcr bool = false
 param acrName string = '${appEnvironmentName}acr'
@@ -27,15 +32,49 @@ param resourceTags object = {}
 targetScope = 'subscription'
 
 
-resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: resourceGroupName
-  location: location
-  tags: resourceTags
+module rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = {
+  name: 'marainRg'
+  params: {
+    location: location
+    name: resourceGroupName
+    resourceTags: resourceTags
+  }
 }
 
+module app_env_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = {
+  name: 'appEnvRg'
+  params: {
+    location: location
+    name: appEnvironmentResourceGroupName
+    useExisting: useExistingAppEnvironment || appEnvironmentResourceGroupName == rg.outputs.name
+    resourceTags: resourceTags
+  }
+}
+
+module app_config_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = {
+  name: 'appConfigRg'
+  params: {
+    location: location
+    name: resourceGroupName
+    useExisting: useExistingAppConfigurationStore || appConfigurationStoreResourceGroupName == rg.outputs.name
+    resourceTags: resourceTags
+  }
+}
+
+module app_insights_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = {
+  name: 'appInsightsRg'
+  params: {
+    location: location
+    name: appInsightsWorkspaceResourceGroupName
+    useExisting: useExistingAppInsightsWorkspace || appInsightsWorkspaceResourceGroupName == rg.outputs.name
+    resourceTags: resourceTags
+  }
+}
+
+
 // ContainerApp hosting environment
-module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment_with_config_publish:0.1.0-beta.03' = if (useContainerApps) {
-  scope: rg //resourceGroup(appEnvironmentSubscriptionId, appEnvironmentResourceGroupName)
+module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment_with_config_publish:0.1.0-initial-modules-and-build.33' = if (useContainerApps) {
+  scope: resourceGroup(appEnvironmentSubscriptionId, appEnvironmentResourceGroupName)
   name: 'containerAppEnv'
   params: {
     name: appEnvironmentName
@@ -51,24 +90,32 @@ module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_
     keyVaultName: key_vault.outputs.name
     resourceTags: resourceTags
   }
+  dependsOn: [
+    app_env_rg
+  ]
 }
 
 // Ensure an AppInsights workspace is provisioned when not hosting in Azure ContainerApps
-// module non_app_environment_ai 'br:endjintestacr.azurecr.io/bicep/modules/app_insights_with_config_publish:0.1.0-beta.03' = if (!useContainerApps) {
-  module non_app_environment_ai '../../../Endjin.RecommendedPractices.Bicep/modules/public/app_insights_with_config_publish.bicep' = if (!useContainerApps) {
-  name: '${deployment().name}-appInsights'
+module non_app_environment_ai 'br:endjintestacr.azurecr.io/bicep/modules/app_insights_with_config_publish:0.1.0-initial-modules-and-build.33' = if (!useContainerApps) {
+  name: 'appInsightsStandalone'
+  scope: resourceGroup(appInsightsWorkspaceSubscription, appInsightsWorkspaceResourceGroupName)
   params:{
-    name: '${appEnvironmentName}ai'
-    useExisting: false
-    resourceGroupName: resourceGroupName
+    name: appInsightsWorkspaceName
+    useExisting: useExistingAppInsightsWorkspace
+    resourceGroupName: appInsightsWorkspaceResourceGroupName
     location: location
     keyVaultName: key_vault.outputs.name
+    keyVaultResourceGroupName: rg.outputs.name
+    keyVaultSubscriptionId: subscription().subscriptionId
     resourceTags: resourceTags
   }
+  dependsOn: [
+    app_insights_rg
+  ]
 }
 
-module key_vault 'br:endjintestacr.azurecr.io/bicep/modules/key_vault_with_secrets_access_via_groups:0.1.0-beta.03' = {
-  scope: rg
+module key_vault 'br:endjintestacr.azurecr.io/bicep/modules/key_vault_with_secrets_access_via_groups:0.1.0-initial-modules-and-build.33' = {
+  scope: resourceGroup(resourceGroupName)
   name: 'keyVaultWithGroupsAccess'
   params: {
     name: keyVaultName
@@ -79,18 +126,23 @@ module key_vault 'br:endjintestacr.azurecr.io/bicep/modules/key_vault_with_secre
     tenantId: tenantId
     resourceTags: resourceTags
   }
+  dependsOn: [
+    rg
+  ]
 }
 
-// module app_config 'br:endjintestacr.azurecr.io/bicep/modules/app_configuration:0.1.0-beta.03' = {
-module app_config '../../../Endjin.RecommendedPractices.Bicep/modules/public/app_configuration_with_rg.bicep' = {
-  name: '${deployment().name}-appConfiguration'
+module app_config 'br:endjintestacr.azurecr.io/bicep/modules/app_configuration:0.1.0-initial-modules-and-build.33' = {
+  name: 'appConfiguration'
+  scope: resourceGroup(appConfigurationStoreResourceGroupName)
   params: {
     name: appConfigurationStoreName
     location: location
     useExisting: useExistingAppConfigurationStore
-    resourceGroupName: appConfigurationStoreResourceGroupName
     resourceTags: resourceTags
   }
+  dependsOn: [
+    app_config_rg
+  ]
 }
 
 

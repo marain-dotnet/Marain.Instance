@@ -16,7 +16,10 @@ param (
     [string] $Environment,
 
     [Parameter()]
-    [string] $ConfigPath
+    [string] $ConfigPath,
+
+    [Parameter()]
+    [switch] $Cleardown
 )
 
 $ErrorActionPreference = 'Stop'
@@ -99,13 +102,23 @@ $armDeployment = @{
     }
 }
 
-Invoke-CorvusArmTemplateDeployment `
-    -BicepVersion "0.4.1124" `
-    -DeploymentScope $armDeployment.Scope `
-    -Location $armDeployment.Location `
-    -ArmTemplatePath $armDeployment.TemplatePath `
-    -TemplateParameters $armDeployment.TemplateParameters `
-    -NoArtifacts `
-    -MaxRetries 1 `
-    -Verbose `
-    -WhatIf:$WhatIfPreference
+if ($Cleardown) {
+    Write-Information "Running Cleardown..."
+    Remove-AzResourceGroup -Name $instanceResourceGroupName -Force -Verbose
+    Remove-AzKeyVault -VaultName $keyVaultName `
+                      -Location $deploymentConfig.AzureLocation `
+                      -InRemovedState `
+                      -Force
+}
+else {
+    Invoke-CorvusArmTemplateDeployment `
+        -BicepVersion "0.4.1124" `
+        -DeploymentScope $armDeployment.Scope `
+        -Location $armDeployment.Location `
+        -ArmTemplatePath $armDeployment.TemplatePath `
+        -TemplateParameters $armDeployment.TemplateParameters `
+        -NoArtifacts `
+        -MaxRetries 1 `
+        -Verbose `
+        -WhatIf:$WhatIfPreference
+}

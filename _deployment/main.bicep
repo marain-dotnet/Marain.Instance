@@ -61,7 +61,7 @@ module app_config_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0
   }
 }
 
-module app_insights_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = {
+module app_insights_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = if (!useContainerApps) {
   name: 'appInsightsRg'
   params: {
     location: location

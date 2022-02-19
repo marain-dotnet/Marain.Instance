@@ -173,6 +173,21 @@ module app_config 'br:endjintestacr.azurecr.io/bicep/modules/app_configuration:0
   ]
 }
 
+module app_service_publish_config 'br:endjintestacr.azurecr.io/bicep/modules/set_app_configuration_keys:0.1.0-initial-modules-and-build.33' = {
+  scope: resourceGroup(appConfigurationStoreSubscriptionId, appConfigurationStoreResourceGroupName)
+  name: 'appServiceConfigPublish'
+  params: {
+    appConfigStoreName: app_config.outputs.name
+    label: appConfigurationLabel
+    entries: [
+      {
+        name: 'AppServicePlanResourceId'
+        value: app_service_plan.outputs.id
+      }
+    ]
+  }
+}
+
 
 output containerAppEnvironmentId string = useContainerApps ? app_environment.outputs.id : ''
 output appServicePlanId string = useAppService ? app_service_plan.outputs.id : ''

@@ -58,7 +58,9 @@ $HostingEnvironmentResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig
 $HostingEnvironmentSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.HostingEnvironmentSubscriptionId
 
 $appConfigStoreName = toResourceName $deploymentConfig.AppConfigurationStoreName $serviceName "cfg" $uniqueSuffix
+$appConfigurationStoreLocation = [string]::IsNullOrEmpty($deploymentConfig.AppConfigurationStoreLocation) ? $deploymentConfig.AzureLocation : $deploymentConfig.AppConfigurationStoreLocation
 $appConfigStoreResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AppConfigurationStoreResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.AppConfigurationStoreResourceGroupName
+$appConfigurationStoreSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.AppConfigurationStoreSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.AppConfigurationStoreSubscriptionId
 $appConfigurationLabel = "$Environment-$StackName"
 # $acrName = toResourceName [string]::IsNullOrEmpty($deploymentConfig.AcrName) ? "$($HostingEnvironmentName)acr" : $deploymentConfig.AcrName
 # $acrResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AcrResourceGroupName) ? $HostingEnvironmentResourceGroupName : $deploymentConfig.AcrResourceGroupName
@@ -87,7 +89,9 @@ $armDeployment = @{
 
         useExistingAppConfigurationStore = $deploymentConfig.UseExistingAppConfigurationStore
         appConfigurationStoreName = $appConfigStoreName
+        appConfigurationStoreLocation = $appConfigurationStoreLocation
         appConfigurationStoreResourceGroupName = $appConfigStoreResourceGroupName
+        appConfigurationStoreSubscriptionId = $appConfigurationStoreSubscriptionId
         appConfigurationLabel = $appConfigurationLabel
 
         hostingEnvironmentType = $deploymentConfig.HostingEnvironmentType

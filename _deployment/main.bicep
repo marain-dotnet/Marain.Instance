@@ -17,8 +17,9 @@ param keyVaultSecretsContributorsGroupObjectId string = ''
 
 param useExistingAppConfigurationStore bool = false
 param appConfigurationStoreName string
+param appConfigurationStoreLocation string = location
 param appConfigurationStoreResourceGroupName string = resourceGroupName
-param appConfigurationStoreSubscription string = subscription().subscriptionId
+param appConfigurationStoreSubscriptionId string = subscription().subscriptionId
 param appConfigurationLabel string
 
 param useExistingAppInsightsWorkspace bool = false
@@ -94,7 +95,7 @@ module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_
     useExisting: useExistingHostingEnvironment
     appConfigurationStoreName: app_config.outputs.name
     appConfigurationStoreResourceGroupName: appConfigurationStoreResourceGroupName
-    appConfigurationStoreSubscription: appConfigurationStoreSubscription
+    appConfigurationStoreSubscription: appConfigurationStoreSubscriptionId
     appConfigurationLabel: appConfigurationLabel
     keyVaultName: key_vault.outputs.name
     resourceTags: resourceTags
@@ -159,10 +160,10 @@ module key_vault 'br:endjintestacr.azurecr.io/bicep/modules/key_vault_with_secre
 
 module app_config 'br:endjintestacr.azurecr.io/bicep/modules/app_configuration:0.1.0-initial-modules-and-build.33' = {
   name: 'appConfiguration'
-  scope: resourceGroup(appConfigurationStoreResourceGroupName)
+  scope: resourceGroup(appConfigurationStoreSubscriptionId, appConfigurationStoreResourceGroupName)
   params: {
     name: appConfigurationStoreName
-    location: location
+    location: appConfigurationStoreLocation
     useExisting: useExistingAppConfigurationStore
     resourceTags: resourceTags
   }

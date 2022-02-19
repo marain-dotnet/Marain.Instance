@@ -11,25 +11,25 @@
     
     # Name overrides (otherwise names will be generated based on stack, instance & environment details)
     InstanceResourceGroupName = ""
-    AppEnvironmentName = ""
+    HostingEnvironmentName = ""
     KeyVaultName = ""
 
     # use an existing app config store
-    UseExistingAppConfigurationStore = $false       # When false, an AppConfig store will be provisioned in the 'marain' resource group
+    UseExistingAppConfigurationStore = $true        # When false, an AppConfig store will be provisioned in the default resource group
                                                     # When true, uncomment the settings below to configure the details
-    # AppConfigurationStoreName = ""
-    # AppConfigurationStoreResourceGroupName = ""
+    AppConfigurationStoreName = "JD-CONFIG-TEST"
+    AppConfigurationStoreLocation = "eastus"        # Only required if in a different location
+    AppConfigurationStoreResourceGroupName = "jd-config-test-rg"
     # AppConfigurationStoreSubscriptionId = ""      # Only required if in a different subscription
 
-
     # Control hosting options
-    UseContainerApps = $false
-    UseExistingAppEnvironment = $false      # When false (and UseContainerApps=$true), a ContainerApp environment will be provisioned in the 'marain' resource group
-                                            # When true, uncomment the settings below to configure the details
-    # AppEnvironmentResourceGroupName = ""
-    # AppEnvironmentSubscriptionId = ""
+    HostingEnvironmentType = "AppService"       # Valid Options: None, AppService, ContainerApps
+    UseExistingHostingEnvironment = $false      # When false, the specified hosting environment will be provisioned in the default resource group
+                                                # When true, uncomment the settings below to configure the details
+    # HostingEnvironmentResourceGroupName = ""
+    # HostingEnvironmentSubscriptionId = ""
 
-    # Config for using an Azure container registry (only relevant when 'UseContainerApps=$true')
+    # Config for using an Azure container registry (only relevant when 'HostingEnvironmentType=ContainerApps')
     UseExistingAcr = $false     # When false, an ACR will be provisioned in the 'marain' resource group
                                 # When true, uncomment the settings below to configure the details
     # AcrName = ""

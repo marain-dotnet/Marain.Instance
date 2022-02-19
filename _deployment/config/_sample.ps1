@@ -19,6 +19,7 @@
     UseExistingAppConfigurationStore = $false       # When false, an AppConfig store will be provisioned in the 'marain' resource group
                                                     # When true, uncomment the settings below to configure the details
     # AppConfigurationStoreName = ""
+    # AppConfigurationStoreLocation = ""            # Only required if in a different location
     # AppConfigurationStoreResourceGroupName = ""
     # AppConfigurationStoreSubscriptionId = ""      # Only required if in a different subscription
 

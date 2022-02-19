@@ -24,8 +24,9 @@ param appConfigurationLabel string
 
 param useExistingAppInsightsWorkspace bool = false
 param appInsightsWorkspaceName string = '${hostingEnvironmentName}ai'
+param appInsightsWorkspaceLocation string = location
 param appInsightsWorkspaceResourceGroupName string = resourceGroupName
-param appInsightsWorkspaceSubscription string = subscription().subscriptionId
+param appInsightsWorkspaceSubscriptionId string = subscription().subscriptionId
 
 param location string = deployment().location
 param includeAcr bool = false
@@ -82,7 +83,7 @@ module app_insights_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group
 }
 
 
-// ContainerApp hosting environment
+// ContainerApps hosting environment
 module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment_with_config_publish:0.1.0-initial-modules-and-build.33' = if (useContainerApps) {
   scope: resourceGroup(hostingEnvironmentSubscriptionId, hostingEnvironmentResourceGroupName)
   name: 'containerAppEnvWithConfigPublish'
@@ -122,15 +123,15 @@ module app_service_plan 'br:endjintestacr.azurecr.io/bicep/modules/app_service_p
   ]
 }
 
-// Ensure an AppInsights workspace is provisioned when not hosting in Azure ContainerApps
+// Ensure an AppInsights workspace is provisioned when not hosting in ContainerApps
 module non_app_environment_ai 'br:endjintestacr.azurecr.io/bicep/modules/app_insights_with_config_publish:0.1.0-initial-modules-and-build.33' = if (!useContainerApps) {
   name: 'appInsightsStandalone'
-  scope: resourceGroup(appInsightsWorkspaceSubscription, appInsightsWorkspaceResourceGroupName)
+  scope: resourceGroup(appInsightsWorkspaceSubscriptionId, appInsightsWorkspaceResourceGroupName)
   params:{
     name: appInsightsWorkspaceName
     useExisting: useExistingAppInsightsWorkspace
     resourceGroupName: appInsightsWorkspaceResourceGroupName
-    location: location
+    location: appInsightsWorkspaceLocation
     keyVaultName: key_vault.outputs.name
     keyVaultResourceGroupName: rg.outputs.name
     keyVaultSubscriptionId: subscription().subscriptionId
@@ -174,5 +175,6 @@ module app_config 'br:endjintestacr.azurecr.io/bicep/modules/app_configuration:0
 
 
 output containerAppEnvironmentId string = useContainerApps ? app_environment.outputs.id : ''
+output appServicePlanId string = useAppService ? app_service_plan.outputs.id : ''
 output keyVaultId string = key_vault.outputs.id
 output appConfigStoreId string = app_config.outputs.id

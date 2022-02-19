@@ -29,6 +29,14 @@
     # HostingEnvironmentResourceGroupName = ""
     # HostingEnvironmentSubscriptionId = ""
 
+    # Use an existing AppInsights workspace
+    UseExistingAppInsightsWorkspace = $true     # When false, an AppInsights workspace will be provisioned in the default resource group
+                                                # When true, uncomment the settings below to configure the details
+    AppInsightsWorkspaceName = "jdtestai"
+    AppInsightsWorkspaceLocation = "eastus"     # Only required if in a different location
+    AppInsightsWorkspaceResourceGroupName = "jd-config-test-rg"
+    # AppInsightsWorkspaceSubscriptionId = ""   # Only required if in a different subscription
+
     # Config for using an Azure container registry (only relevant when 'HostingEnvironmentType=ContainerApps')
     UseExistingAcr = $false     # When false, an ACR will be provisioned in the 'marain' resource group
                                 # When true, uncomment the settings below to configure the details

@@ -53,17 +53,23 @@ $uniqueSuffix = Get-CorvusUniqueSuffix -SubscriptionId $SubscriptionId `
 $instanceResourceGroupName = toResourceName $deploymentConfig.InstanceResourceGroupName $serviceName "rg" $uniqueSuffix
 $keyVaultName = toResourceName $deploymentConfig.KeyVaultName $serviceName "kv" $uniqueSuffix
 
-$HostingEnvironmentName = toResourceName $deploymentConfig.HostingEnvironmentName $serviceName "kubeenv" $uniqueSuffix
-$HostingEnvironmentResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.HostingEnvironmentResourceGroupName
-$HostingEnvironmentSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.HostingEnvironmentSubscriptionId
+$hostingEnvironmentName = toResourceName $deploymentConfig.HostingEnvironmentName $serviceName "kubeenv" $uniqueSuffix
+$hostingEnvironmentResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.HostingEnvironmentResourceGroupName
+$hostingEnvironmentSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.HostingEnvironmentSubscriptionId
 
 $appConfigStoreName = toResourceName $deploymentConfig.AppConfigurationStoreName $serviceName "cfg" $uniqueSuffix
 $appConfigurationStoreLocation = [string]::IsNullOrEmpty($deploymentConfig.AppConfigurationStoreLocation) ? $deploymentConfig.AzureLocation : $deploymentConfig.AppConfigurationStoreLocation
 $appConfigStoreResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AppConfigurationStoreResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.AppConfigurationStoreResourceGroupName
 $appConfigurationStoreSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.AppConfigurationStoreSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.AppConfigurationStoreSubscriptionId
 $appConfigurationLabel = "$Environment-$StackName"
-# $acrName = toResourceName [string]::IsNullOrEmpty($deploymentConfig.AcrName) ? "$($HostingEnvironmentName)acr" : $deploymentConfig.AcrName
-# $acrResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AcrResourceGroupName) ? $HostingEnvironmentResourceGroupName : $deploymentConfig.AcrResourceGroupName
+
+$appInsightsWorkspaceName = [string]::IsNullOrEmpty($deploymentConfig.AppInsightsWorkspaceName) ? "$($hostingEnvironmentName)ai" : $deploymentConfig.AppInsightsWorkspaceName
+$appInsightsWorkspaceLocation = [string]::IsNullOrEmpty($deploymentConfig.AppInsightsWorkspaceLocation) ? $deploymentConfig.AzureLocation : $deploymentConfig.AppInsightsWorkspaceLocation
+$appInsightsWorkspaceResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AppInsightsWorkspaceResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.AppInsightsWorkspaceResourceGroupName
+$appInsightsWorkspaceSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.AppInsightsWorkspaceSubscriptionId) ? $(Get-AzContext).Subscription.Id : $deploymentConfig.AppInsightsWorkspaceSubscriptionId
+
+# $acrName = toResourceName [string]::IsNullOrEmpty($deploymentConfig.AcrName) ? "$($hostingEnvironmentName)acr" : $deploymentConfig.AcrName
+# $acrResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AcrResourceGroupName) ? $hostingEnvironmentResourceGroupName : $deploymentConfig.AcrResourceGroupName
 # $acrSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.AcrSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.AcrSubscriptionId
 
 
@@ -96,9 +102,15 @@ $armDeployment = @{
 
         hostingEnvironmentType = $deploymentConfig.HostingEnvironmentType
         UseExistingHostingEnvironment = $deploymentConfig.UseExistingHostingEnvironment
-        HostingEnvironmentName = $HostingEnvironmentName
-        HostingEnvironmentResourceGroupName = $HostingEnvironmentResourceGroupName
-        HostingEnvironmentSubscriptionId = $HostingEnvironmentSubscriptionId
+        HostingEnvironmentName = $hostingEnvironmentName
+        HostingEnvironmentResourceGroupName = $hostingEnvironmentResourceGroupName
+        HostingEnvironmentSubscriptionId = $hostingEnvironmentSubscriptionId
+
+        useExistingAppInsightsWorkspace = $deploymentConfig.UseExistingAppInsightsWorkspace
+        appInsightsWorkspaceName = $appInsightsWorkspaceName
+        appInsightsWorkspaceLocation = $appInsightsWorkspaceLocation
+        appInsightsWorkspaceResourceGroupName = $appInsightsWorkspaceResourceGroupName
+        appInsightsWorkspaceSubscriptionId = $appInsightsWorkspaceSubscriptionId
         
         includeAcr = !$deploymentConfig.UseNonAzureContainerRegistry -and !$deploymentConfig.UseExistingAcr
         tenantId = $AadTenantId

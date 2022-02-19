@@ -24,7 +24,7 @@
 
 
     # Control hosting options
-    HostingEnvironmentType = "None"             # Valid Options: None, AppService, ContainerApps
+    HostingEnvironmentType = "AppService"       # Valid Options: None, AppService, ContainerApps
     UseExistingHostingEnvironment = $false      # When false, the specified hosting environment will be provisioned in the default resource group
                                                 # When true, uncomment the settings below to configure the details
     # HostingEnvironmentResourceGroupName = ""

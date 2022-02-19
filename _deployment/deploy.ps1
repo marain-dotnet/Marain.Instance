@@ -53,15 +53,15 @@ $uniqueSuffix = Get-CorvusUniqueSuffix -SubscriptionId $SubscriptionId `
 $instanceResourceGroupName = toResourceName $deploymentConfig.InstanceResourceGroupName $serviceName "rg" $uniqueSuffix
 $keyVaultName = toResourceName $deploymentConfig.KeyVaultName $serviceName "kv" $uniqueSuffix
 
-$appEnvironmentName = toResourceName $deploymentConfig.AppEnvironmentName $serviceName "kubeenv" $uniqueSuffix
-$appEnvironmentResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AppEnvironmentResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.AppEnvironmentResourceGroupName
-$appEnvironmentSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.AppEnvironmentSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.AppEnvironmentSubscriptionId
+$HostingEnvironmentName = toResourceName $deploymentConfig.HostingEnvironmentName $serviceName "kubeenv" $uniqueSuffix
+$HostingEnvironmentResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.HostingEnvironmentResourceGroupName
+$HostingEnvironmentSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.HostingEnvironmentSubscriptionId
 
 $appConfigStoreName = toResourceName $deploymentConfig.AppConfigurationStoreName $serviceName "cfg" $uniqueSuffix
 $appConfigStoreResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AppConfigurationStoreResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.AppConfigurationStoreResourceGroupName
 $appConfigurationLabel = "$Environment-$StackName"
-# $acrName = toResourceName [string]::IsNullOrEmpty($deploymentConfig.AcrName) ? "$($appEnvironmentName)acr" : $deploymentConfig.AcrName
-# $acrResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AcrResourceGroupName) ? $appEnvironmentResourceGroupName : $deploymentConfig.AcrResourceGroupName
+# $acrName = toResourceName [string]::IsNullOrEmpty($deploymentConfig.AcrName) ? "$($HostingEnvironmentName)acr" : $deploymentConfig.AcrName
+# $acrResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.AcrResourceGroupName) ? $HostingEnvironmentResourceGroupName : $deploymentConfig.AcrResourceGroupName
 # $acrSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.AcrSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.AcrSubscriptionId
 
 
@@ -90,11 +90,11 @@ $armDeployment = @{
         appConfigurationStoreResourceGroupName = $appConfigStoreResourceGroupName
         appConfigurationLabel = $appConfigurationLabel
 
-        useContainerApps = $deploymentConfig.UseContainerApps
-        useExistingAppEnvironment = $deploymentConfig.UseExistingAppEnvironment
-        appEnvironmentName = $appEnvironmentName
-        appEnvironmentResourceGroupName = $appEnvironmentResourceGroupName
-        appEnvironmentSubscriptionId = $appEnvironmentSubscriptionId
+        hostingEnvironmentType = $deploymentConfig.HostingEnvironmentType
+        UseExistingHostingEnvironment = $deploymentConfig.UseExistingHostingEnvironment
+        HostingEnvironmentName = $HostingEnvironmentName
+        HostingEnvironmentResourceGroupName = $HostingEnvironmentResourceGroupName
+        HostingEnvironmentSubscriptionId = $HostingEnvironmentSubscriptionId
         
         includeAcr = !$deploymentConfig.UseNonAzureContainerRegistry -and !$deploymentConfig.UseExistingAcr
         tenantId = $AadTenantId
@@ -108,7 +108,8 @@ if ($Cleardown) {
     Remove-AzKeyVault -VaultName $keyVaultName `
                       -Location $deploymentConfig.AzureLocation `
                       -InRemovedState `
-                      -Force
+                      -Force `
+                      -Verbose
 }
 else {
     Invoke-CorvusArmTemplateDeployment `

@@ -2,6 +2,7 @@
     RequiredConfiguration = @(
         'AzureLocation'
         'ServiceName'
+        'HostingEnvironmentType'
         'KeyVaultReadersGroupObjectId'
         'KeyVaultContributorsGroupObjectId'
     )

@@ -1,10 +1,15 @@
 param resourceGroupName string
 
-param useContainerApps bool
-param useExistingAppEnvironment bool
-param appEnvironmentName string
-param appEnvironmentResourceGroupName string = resourceGroupName
-param appEnvironmentSubscriptionId string = subscription().subscriptionId
+@allowed([
+  'AppService'
+  'ContainerApps'
+  'None'
+])
+param hostingEnvironmentType string
+param useExistingHostingEnvironment bool
+param hostingEnvironmentName string
+param hostingEnvironmentResourceGroupName string = resourceGroupName
+param hostingEnvironmentSubscriptionId string = subscription().subscriptionId
 
 param keyVaultName string
 param keyVaultSecretsReadersGroupObjectId string = ''
@@ -17,16 +22,20 @@ param appConfigurationStoreSubscription string = subscription().subscriptionId
 param appConfigurationLabel string
 
 param useExistingAppInsightsWorkspace bool = false
-param appInsightsWorkspaceName string = '${appEnvironmentName}ai'
+param appInsightsWorkspaceName string = '${hostingEnvironmentName}ai'
 param appInsightsWorkspaceResourceGroupName string = resourceGroupName
 param appInsightsWorkspaceSubscription string = subscription().subscriptionId
 
 param location string = deployment().location
 param includeAcr bool = false
-param acrName string = '${appEnvironmentName}acr'
+param acrName string = '${hostingEnvironmentName}acr'
 param acrSku string = 'Standard'
 param tenantId string
 param resourceTags object = {}
+
+
+var useContainerApps = hostingEnvironmentType == 'ContainerApps'
+var useAppService = hostingEnvironmentType == 'AppService'
 
 
 targetScope = 'subscription'
@@ -41,12 +50,12 @@ module rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initia
   }
 }
 
-module app_env_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = {
+module hosting_env_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group:0.1.0-initial-modules-and-build.33' = {
   name: 'appEnvRg'
   params: {
     location: location
-    name: appEnvironmentResourceGroupName
-    useExisting: useExistingAppEnvironment || appEnvironmentResourceGroupName == rg.outputs.name
+    name: hostingEnvironmentResourceGroupName
+    useExisting: useExistingHostingEnvironment || hostingEnvironmentResourceGroupName == rg.outputs.name
     resourceTags: resourceTags
   }
 }
@@ -74,15 +83,15 @@ module app_insights_rg 'br:endjintestacr.azurecr.io/bicep/modules/resource_group
 
 // ContainerApp hosting environment
 module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_environment_with_config_publish:0.1.0-initial-modules-and-build.33' = if (useContainerApps) {
-  scope: resourceGroup(appEnvironmentSubscriptionId, appEnvironmentResourceGroupName)
-  name: 'containerAppEnv'
+  scope: resourceGroup(hostingEnvironmentSubscriptionId, hostingEnvironmentResourceGroupName)
+  name: 'containerAppEnvWithConfigPublish'
   params: {
-    name: appEnvironmentName
+    name: hostingEnvironmentName
     location: location
     createContainerRegistry: includeAcr
     containerRegistryName: acrName
     containerRegistrySku: acrSku
-    useExisting: useExistingAppEnvironment
+    useExisting: useExistingHostingEnvironment
     appConfigurationStoreName: app_config.outputs.name
     appConfigurationStoreResourceGroupName: appConfigurationStoreResourceGroupName
     appConfigurationStoreSubscription: appConfigurationStoreSubscription
@@ -91,7 +100,24 @@ module app_environment 'br:endjintestacr.azurecr.io/bicep/modules/container_app_
     resourceTags: resourceTags
   }
   dependsOn: [
-    app_env_rg
+    hosting_env_rg
+  ]
+}
+
+// AppService hosting environment
+module app_service_plan 'br:endjintestacr.azurecr.io/bicep/modules/app_service_plan:0.1.0-initial-modules-and-build.33' = if (useAppService) {
+  name: 'appServicePlan'
+  scope: resourceGroup(hostingEnvironmentSubscriptionId, hostingEnvironmentResourceGroupName)
+  params: {
+    name: hostingEnvironmentName
+    useExisting: useExistingHostingEnvironment
+    // existingPlanResourceGroupName: hostingEnvironmentResourceGroupName
+    skuName: 'Y1'
+    skuTier: 'Dynamic'
+    location: location
+  }
+  dependsOn: [
+    hosting_env_rg
   ]
 }
 

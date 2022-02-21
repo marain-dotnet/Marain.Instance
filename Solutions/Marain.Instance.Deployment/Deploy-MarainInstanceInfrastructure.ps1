@@ -396,7 +396,7 @@ class MarainServiceDeploymentContext {
                 $app = Update-AzADApplication -ObjectId $app.ObjectId -ReplyUrl $replyUrls
             }
         } else {
-            $app = New-AzADApplication -DisplayName $DisplayName -IdentifierUris $appUri -HomePage $appUri -ReplyUrls $replyUrls
+            $app = New-AzADApplication -DisplayName $DisplayName -HomePage $appUri -ReplyUrls $replyUrls
             Write-Host "Created new app with id $($app.ApplicationId)"
         }
 

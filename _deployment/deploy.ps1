@@ -53,7 +53,7 @@ $uniqueSuffix = Get-CorvusUniqueSuffix -SubscriptionId $SubscriptionId `
 $instanceResourceGroupName = toResourceName $deploymentConfig.InstanceResourceGroupName $serviceName "rg" $uniqueSuffix
 $keyVaultName = toResourceName $deploymentConfig.KeyVaultName $serviceName "kv" $uniqueSuffix
 
-$hostingEnvironmentName = toResourceName $deploymentConfig.HostingEnvironmentName $serviceName "kubeenv" $uniqueSuffix
+$hostingEnvironmentName = toResourceName $deploymentConfig.HostingEnvironmentName $serviceName "hosting" $uniqueSuffix
 $hostingEnvironmentResourceGroupName = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentResourceGroupName) ? $instanceResourceGroupName : $deploymentConfig.HostingEnvironmentResourceGroupName
 $hostingEnvironmentSubscriptionId = [string]::IsNullOrEmpty($deploymentConfig.HostingEnvironmentSubscriptionId) ? (Get-AzContext).Subscription.Id : $deploymentConfig.HostingEnvironmentSubscriptionId
 
@@ -118,6 +118,14 @@ $armDeployment = @{
     }
 }
 
+# Remove any parameters that do not have a value, this will allow any defaults
+# defined in the ARM template to be used
+$parametersWithValues = @{}
+$armDeployment.TemplateParameters.Keys |
+    ? { !([string]::IsNullOrEmpty($armDeployment.TemplateParameters[$_])) } |
+    % { $parametersWithValues += @{ $_ = $armDeployment.TemplateParameters[$_] } }
+$parametersWithValues | ft | out-string | Write-Verbose
+
 if ($Cleardown) {
     Write-Information "Running Cleardown..."
     Remove-AzResourceGroup -Name $instanceResourceGroupName -Force -Verbose
@@ -133,7 +141,7 @@ else {
         -DeploymentScope $armDeployment.Scope `
         -Location $armDeployment.Location `
         -ArmTemplatePath $armDeployment.TemplatePath `
-        -TemplateParameters $armDeployment.TemplateParameters `
+        -TemplateParameters $parametersWithValues `
         -NoArtifacts `
         -MaxRetries 1 `
         -Verbose `

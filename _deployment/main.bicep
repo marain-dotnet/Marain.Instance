@@ -3,10 +3,11 @@ param resourceGroupName string
 @allowed([
   'AppService'
   'ContainerApps'
+  'Functions'
   'None'
 ])
 param hostingEnvironmentType string
-param useExistingHostingEnvironment bool
+param useExistingHostingEnvironment bool = false
 param hostingEnvironmentName string
 param hostingEnvironmentResourceGroupName string = resourceGroupName
 param hostingEnvironmentSubscriptionId string = subscription().subscriptionId
@@ -37,7 +38,7 @@ param resourceTags object = {}
 
 
 var useContainerApps = hostingEnvironmentType == 'ContainerApps'
-var useAppService = hostingEnvironmentType == 'AppService'
+var useAppService = hostingEnvironmentType == 'AppService' || hostingEnvironmentType == 'Functions'
 
 
 targetScope = 'subscription'

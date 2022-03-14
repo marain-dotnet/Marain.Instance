@@ -380,9 +380,14 @@ class MarainServiceDeploymentContext {
     {
         Write-Host "`nEnsuring Azure AD application {$DisplayName} exists" -ForegroundColor Green
 
+        # Handle the breaking changes for versions of Azure PowerShell that use Microsoft Graph for its AAD interactions
+        # ref: https://docs.microsoft.com/en-us/powershell/azure/azps-msgraph-migration-changes
+        $appIdPropertyName = (Get-Module Az.Resources).Version.Major -ge 5 ? "AppId" : "ApplicationId"
+        $objectIdPropertyName = (Get-Module Az.Resources).Version.Major -ge 5 ? "Id" : "ObjectId"
+
         $app = Get-AzADApplication -DisplayNameStartWith $DisplayName | Where-Object {$_.DisplayName -eq $DisplayName}
         if ($app) {
-            Write-Host "Found existing app with id $($app.ApplicationId)"
+            Write-Host "Found existing app with id $($app.$appIdPropertyName)"
             $ReplyUrlsOk = $true
             ForEach ($ReplyUrl in $replyUrls) {
                 if (-not $app.ReplyUrls.Contains($ReplyUrl)) {
@@ -393,14 +398,14 @@ class MarainServiceDeploymentContext {
     
             if (-not $ReplyUrlsOk) {
                 Write-Host "Setting reply URLs: $replyUrls"
-                $app = Update-AzADApplication -ObjectId $app.ObjectId -ReplyUrl $replyUrls
+                $app = Update-AzADApplication -ObjectId $app.$objectIdPropertyName -ReplyUrl $replyUrls
             }
         } else {
             $app = New-AzADApplication -DisplayName $DisplayName -HomePage $appUri -ReplyUrls $replyUrls
-            Write-Host "Created new app with id $($app.ApplicationId)"
+            Write-Host "Created new app with id $($app.$appIdPropertyName)"
         }
 
-        return [AzureAdAppWithGraphAccess]::new($this, $app.ApplicationId, $app.ObjectId)
+        return [AzureAdAppWithGraphAccess]::new($this, $app.$appIdPropertyName, $app.$objectIdPropertyName)
     }
 
     [AzureAdApp]DefineAzureAdAppForAppService()

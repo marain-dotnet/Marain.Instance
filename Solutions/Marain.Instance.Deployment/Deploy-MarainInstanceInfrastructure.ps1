@@ -403,6 +403,7 @@ class MarainServiceDeploymentContext {
         } else {
             $app = New-AzADApplication -DisplayName $DisplayName -HomePage $appUri -ReplyUrls $replyUrls
             Write-Host "Created new app with id $($app.$appIdPropertyName)"
+            $app | Update-AzADApplication -IdentifierUri "api://$($app.$appIdPropertyName)"
         }
 
         return [AzureAdAppWithGraphAccess]::new($this, $app.$appIdPropertyName, $app.$objectIdPropertyName)

@@ -384,13 +384,19 @@ class MarainServiceDeploymentContext {
         # ref: https://docs.microsoft.com/en-us/powershell/azure/azps-msgraph-migration-changes
         $appIdPropertyName = (Get-Module Az.Resources).Version.Major -ge 5 ? "AppId" : "ApplicationId"
         $objectIdPropertyName = (Get-Module Az.Resources).Version.Major -ge 5 ? "Id" : "ObjectId"
+        $replyUrlsProp = (Get-Module Az.Resources).Version.Major -ge 5 ? "Web.RedirectUri" : "ReplyUrls"
 
         $app = Get-AzADApplication -DisplayNameStartWith $DisplayName | Where-Object {$_.DisplayName -eq $DisplayName}
         if ($app) {
             Write-Host "Found existing app with id $($app.$appIdPropertyName)"
             $ReplyUrlsOk = $true
+            
+            # Evaluate the dynamic expression that accesses the ReplyUrls for either the
+            # PSADApplication or MicrosoftGraphApplication object type
+            [array]$currentReplyUrls = Invoke-Expression "`$app.$replyUrlsProp"
+                
             ForEach ($ReplyUrl in $replyUrls) {
-                if (-not $app.ReplyUrls.Contains($ReplyUrl)) {
+                if (-not $currentReplyUrls.Contains($ReplyUrl)) {
                     $ReplyUrlsOk = $false
                     Write-Host "Reply URL $ReplyUrl not present in app"
                 }
@@ -398,7 +404,7 @@ class MarainServiceDeploymentContext {
     
             if (-not $ReplyUrlsOk) {
                 Write-Host "Setting reply URLs: $replyUrls"
-                $app = Update-AzADApplication -ObjectId $app.$objectIdPropertyName -ReplyUrl $replyUrls
+                $app = Update-AzADApplication -ObjectId $app.$objectIdPropertyName -ReplyUrls $replyUrls
             }
         } else {
             $app = New-AzADApplication -DisplayName $DisplayName -HomePage $appUri -ReplyUrls $replyUrls

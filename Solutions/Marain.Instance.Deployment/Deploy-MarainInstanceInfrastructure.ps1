@@ -22,7 +22,7 @@ $ProgressPreference = 'SilentlyContinue'       # the progress message output can
 Set-StrictMode -Version 4
 
 $marainGlobalToolName = 'marain'
-$marainGlobalToolVersion = '1.1.2'
+$marainGlobalToolDefaultVersion = '1.1.2'
 
 #
 # azure-cli helper functions
@@ -956,7 +956,24 @@ try {
         $InstanceDeploymentContext.MarainCliPath += '.exe'
     } 
     if ( !(Test-Path $InstanceDeploymentContext.MarainCliPath)) {
+        # Query the optional 'marainServices.tools' configuration in a StrictMode-friendly way
+        $marainGlobalToolVersionFromConfig = $marainServices |
+                                                Select-Object -ExpandProperty tools -ErrorAction Ignore |
+                                                Select-Object -ExpandProperty marain -ErrorAction Ignore |
+                                                Select-Object -ExpandProperty release -ErrorAction Ignore
+        $marainGlobalToolVersion = $marainGlobalToolVersionFromConfig ? $marainGlobalToolVersionFromConfig : $marainGlobalToolDefaultVersion
+
+        if ($marainGlobalToolVersionFromConfig) {
+            Write-Host "Resolved 'marain' .NET global tool version from config"
+        } else {
+            Write-Host "Using default 'marain' .NET global tool version"
+        }
+        
+        Write-Host "Installing 'marain' .NET global tool v$marainGlobalToolVersion"
         & dotnet tool install -g $marainGlobalToolName --version $marainGlobalToolVersion
+    }
+    else {
+        Write-Host "Using existing version of 'marain' .NET global tool v$((dotnet tool list -g | ? { $_ -match 'marain' }).Replace('marain','').Replace(' ',''))"
     }
 
     # Lookup the identity of the deployment user, as we need their objectId to grant keyvault access

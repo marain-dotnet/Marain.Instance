@@ -2,23 +2,28 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "1.1.14"
+      "release": "3.0.0"
     },
     "Marain.Operations": {
       "omit": false,
-      "release": "1.2.2"
+      "release": "3.0.0"
     },
     "Marain.Workflow": {
       "omit": false,
-      "release": "0.2.8"
+      "release": "0.4.0"
     },
     "Marain.Claims": {
       "omit": false,
-      "release": "3.1.0"
+      "release": "5.0.0"
     },
     "Marain.UserNotifications": {
       "omit": false,
-      "release": "0.3.8"
+      "release": "0.3.9"
+    }
+  },
+  "tools": {
+    "marain": {
+      "release": "3.0.0"
     }
   }
 }

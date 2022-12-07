@@ -15,5 +15,10 @@
     "Marain.UserNotifications": {
       "release": "0.1.4"
     }
+  },
+  "tools": {
+    "marain": {
+      "release": "1.1.2"
+    }
   }
 }

@@ -385,7 +385,7 @@ class MarainServiceDeploymentContext {
             Write-Host "Found existing app with id $($app.AppId)"
             $ReplyUrlsOk = $true
             ForEach ($ReplyUrl in $replyUrls) {
-                if (-not $app.ReplyUrls.Contains($ReplyUrl)) {
+                if (-not $app.Web.RedirectUri.Contains($ReplyUrl)) {
                     $ReplyUrlsOk = $false
                     Write-Host "Reply URL $ReplyUrl not present in app"
                 }

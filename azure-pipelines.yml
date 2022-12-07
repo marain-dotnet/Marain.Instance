@@ -65,10 +65,10 @@ stages:
                 gci variable:\ | ft -AutoSize | Out-String | Write-Host
                 Write-Host "*** Module info:"
                 Get-Module -ListAvailable | Select Name,Version,Path
-              azurePowerShellVersion: otherVersion
+              azurePowerShellVersion: latestVersion
               # uncomment the following line if there is a need to use an older version of azurePowershell
               # e.g. due to a known issue in the current release (like we had in Sept 2020)
-              preferredAzurePowerShellVersion: '6.6.0'
+              # preferredAzurePowerShellVersion: '4.4.0'
               pwsh: true
 
           - template: azurepipeline-templates/deploy-marain-instance.yml

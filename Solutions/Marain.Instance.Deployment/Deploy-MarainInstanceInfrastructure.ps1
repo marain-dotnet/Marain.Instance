@@ -382,7 +382,7 @@ class MarainServiceDeploymentContext {
 
         $app = Get-AzADApplication -DisplayNameStartWith $DisplayName | Where-Object {$_.DisplayName -eq $DisplayName}
         if ($app) {
-            Write-Host "Found existing app with id $($app.ApplicationId)"
+            Write-Host "Found existing app with id $($app.AppId)"
             $ReplyUrlsOk = $true
             ForEach ($ReplyUrl in $replyUrls) {
                 if (-not $app.ReplyUrls.Contains($ReplyUrl)) {
@@ -393,14 +393,14 @@ class MarainServiceDeploymentContext {
     
             if (-not $ReplyUrlsOk) {
                 Write-Host "Setting reply URLs: $replyUrls"
-                $app = Update-AzADApplication -ObjectId $app.ObjectId -ReplyUrl $replyUrls
+                $app = Update-AzADApplication -ObjectId $app.Id -ReplyUrl $replyUrls
             }
         } else {
             $app = New-AzADApplication -DisplayName $DisplayName -IdentifierUris $appUri -HomePage $appUri -ReplyUrls $replyUrls
-            Write-Host "Created new app with id $($app.ApplicationId)"
+            Write-Host "Created new app with id $($app.AppId)"
         }
 
-        return [AzureAdAppWithGraphAccess]::new($this, $app.ApplicationId, $app.ObjectId)
+        return [AzureAdAppWithGraphAccess]::new($this, $app.AppId, $app.Id)
     }
 
     [AzureAdApp]DefineAzureAdAppForAppService()

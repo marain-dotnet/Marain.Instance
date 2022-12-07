@@ -37,8 +37,9 @@ steps:
             -SubscriptionId ${{ parameters.azureSubscriptionId }} `
             -InstanceManifest ${{ parameters.marainManifestPath }}/${{ parameters.marainInstanceType }}.json `
             -Prefix ${{ parameters.marainResourcePrefix }}
-    azurePowerShellVersion: otherVersion
-    # Pin to a pre-MSGraph migration version
-    preferredAzurePowerShellVersion: '6.6.0'
+    azurePowerShellVersion: latestVersion
+    # uncomment the following line if there is a need to use an older version of azurePowershell
+    # e.g. due to a known issue in the current release (like we had in Sept 2020)
+    # preferredAzurePowerShellVersion: '4.4.0'
     pwsh: true
     workingDirectory: ${{ parameters.workingDirectory }}

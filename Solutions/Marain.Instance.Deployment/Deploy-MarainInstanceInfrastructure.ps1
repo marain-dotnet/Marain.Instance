@@ -857,6 +857,8 @@ try {
     if ($null -eq $azAvailable) {
         Write-Error "Az PowerShell modules are not installed - they can be installed using 'Install-Module Az -AllowClobber -Force'"
     }
+    $azModuleInfo = Import-Module Az -PassThru
+    Write-Host "Using Az module version $($azModuleInfo.Version)"
 
     # Ensure PowerShell Az is logged-in
     if ($null -eq (Get-AzContext) -and [Environment]::UserInteractive) {
@@ -956,8 +958,8 @@ try {
         $InstanceDeploymentContext.MarainCliPath += '.exe'
     } 
     if ( !(Test-Path $InstanceDeploymentContext.MarainCliPath)) {
-        # Query the optional 'marainServices.tools' configuration in a StrictMode-friendly way
-        $marainGlobalToolVersionFromConfig = $marainServices |
+        # Query the optional '$InstanceManifest.tools' configuration in a StrictMode-friendly way
+        $marainGlobalToolVersionFromConfig = $InstanceManifest |
                                                 Select-Object -ExpandProperty tools -ErrorAction Ignore |
                                                 Select-Object -ExpandProperty marain -ErrorAction Ignore |
                                                 Select-Object -ExpandProperty release -ErrorAction Ignore

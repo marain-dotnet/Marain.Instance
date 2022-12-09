@@ -703,16 +703,8 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
 
         # We have now migrated away from using the deprecated Azure Graph API, using Microsoft Graph instead
         $this.GraphApiAppUri = "https://graph.microsoft.com/v1.0/applications/$objectId"
-        
-        # NOTE: We use the REST API directly, as the response object returned by 'Get-AzADApplication' has property names with initial capital
-        #       letters, which are incompatible when used as payload for the MS Graph REST API
-        $appLookupResp = Invoke-AzRestMethod -Uri $this.GraphApiAppUri
-        if ($appLookupResp.StatusCode -ge 400) {
-            throw "Error whilst querying the application via MS Graph [appId=$appId] [objectId=$objectId] : $($appLookupResp.Content)"
-        }
-        $this.Manifest =  $appLookupResp |
-                            Select-Object -ExpandProperty Content |
-                            ConvertFrom-JSON -depth 100
+
+        $this.Manifest = Get-AzADApplication -ObjectId $objectId
     }
 
     [string]$ObjectId
@@ -725,45 +717,41 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
     {
         $MadeChange = $false
 
-        [array]$RequiredResourceAccess = $this.Manifest | Select-Object -ExpandProperty requiredResourceAccess
+        [array]$RequiredResourceAccess = $this.Manifest | Select-Object -ExpandProperty RequiredResourceAccess
 
         # Create top-level object for any APIs that are not currently
-        $ResourceEntry = $RequiredResourceAccess | Where-Object {$_.resourceAppId -eq $ResourceId }
+        $ResourceEntry = $RequiredResourceAccess | Where-Object { $_.ResourceAppId -eq $ResourceId }
         if (-not $ResourceEntry) {
             $MadeChange = $true
-            $ResourceEntry = @{resourceAccess=@(); resourceAppId=$ResourceId}
+            $ResourceEntry = @{
+                ResourceAccess = @()
+                ResourceAppId = $ResourceId
+            }
             $RequiredResourceAccess += $ResourceEntry
         }
         
         # Add any requiredResourceAccess entries that are not configured on the application object
         foreach ($access in $accessRequirements) {
-            $RequiredAccess = $ResourceEntry.resourceAccess| Where-Object {$_.id -eq $access.Id -and $_.type -eq $access.Type}
+            $RequiredAccess = $ResourceEntry.ResourceAccess |
+                                Where-Object {
+                                    $_.Id -eq $access.Id -and `
+                                    $_.Type -eq $access.Type
+                                }
             if (-not $RequiredAccess) {
-                Write-Host "Adding '$ResourceId : $($access.id)' required resource access"
+                Write-Host "Adding '$ResourceId : $($access.Id)' required resource access"
         
-                $RequiredAccess = @{id=$access.Id; type="Scope"}
-                $ResourceEntry.resourceAccess += $RequiredAccess
+                $RequiredAccess = @{
+                    Id = $access.Id
+                    Type = "Scope"
+                }
+                $ResourceEntry.ResourceAccess += $RequiredAccess
                 $MadeChange = $true
             }
         }
 
         if ($MadeChange) {
-            # Configure the payload for updating the 'requiredResourceAccess' via the REST API
-            $PatchRequiredResourceAccess = @{requiredResourceAccess=$RequiredResourceAccess}
-
-            $Response = Invoke-AzRestMethod -Uri $this.GraphApiAppUri `
-                                            -Method PATCH `
-                                            -Payload (ConvertTo-Json $PatchRequiredResourceAccess -Compress -Depth 100)
-            if ($Response.StatusCode -ge 400) {
-                throw "Error whilst granting resourceAccess for appId $($this.Manifest.appId) : $($Response.Content)"
-            }
-
-            # Update our reference to the updated application
-            # NOTE: We use the REST API directly, as the response object returned by 'Get-AzADApplication' has property names with initial capital
-            #       letters, which are incompatible when used as payload for the MS Graph REST API
-            $this.Manifest = Invoke-AzRestMethod -Uri $this.GraphApiAppUri |
-                                Select-Object -ExpandProperty Content |
-                                ConvertFrom-JSON -Depth 100
+            Update-AzADApplication -Id $this.Manifest.Id -RequiredResourceAccess $RequiredResourceAccess
+            $this.Manifest = Get-AzADApplication -ObjectId $this.Manifest.Id
         }
     }
 
@@ -774,33 +762,26 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
         [string] $Value,
         [string[]] $AllowedMemberTypes)
     {
-        $AppRole = $null
-        if ($this.Manifest.appRoles.Length -gt 0) {
-            $AppRole = $this.Manifest.appRoles | Where-Object {$_.id -eq $AppRoleId}
+        $existingAppRole = $null
+        if ($this.Manifest.AppRole.Length -gt 0) {
+            $existingAppRole = $this.Manifest.AppRole |
+                                Where-Object { $_.Id -eq $AppRoleId }
         }
-        if (-not $AppRole) {
+        if (-not $existingAppRole) {
             Write-Host "Adding $Value app role"
     
-            $AppRole = @{
-                displayName = $DisplayName
-                id = $AppRoleId
-                isEnabled = $true
-                description = $Description
-                value = $Value
-                allowedMemberTypes = $AllowedMemberTypes
+            $newAppRole = @{
+                DisplayName = $DisplayName
+                Id = $AppRoleId
+                IsEnabled = $true
+                Description = $Description
+                Value = $Value
+                AllowedMemberType = $AllowedMemberTypes
             }
-            $AppRoles = $this.Manifest.appRoles + $AppRole
-    
-            $PatchAppRoles = @{appRoles=$AppRoles}
-            $Response = Invoke-AzRestMethod -Uri $this.GraphApiAppUri `
-                                            -Method "PATCH" `
-                                            -Payload ($PatchAppRoles | ConvertTo-Json -Depth 100)
-            if ($Response.StatusCode -ge 400) {
-                throw "Error whilst configuring AppRoles for appId $($this.Manifest.appId) : $($Response.Content)"
-            }
-            $this.Manifest = Invoke-AzRestMethod -Uri $this.GraphApiAppUri |
-                                    Select-Object -ExpandProperty Content |
-                                    ConvertFrom-Json -Depth 100
+            $this.Manifest.AppRole += $newAppRole
+
+            Update-AzADApplication -Id $this.Manifest.Id -AppRole $this.Manifest.AppRole
+            $this.Manifest = Get-AzADApplication -Id $this.Manifest.Id
         }
     }
 }

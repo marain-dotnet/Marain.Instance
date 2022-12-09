@@ -876,23 +876,31 @@ try {
     $InstanceDeploymentContext.MarainCliPath = Join-Path $HOME ".dotnet/tools/marain"
     if ($IsWindows) {
         $InstanceDeploymentContext.MarainCliPath += '.exe'
-    } 
-    if ( !(Test-Path $InstanceDeploymentContext.MarainCliPath)) {
-        # Query the optional '$InstanceManifest.tools' configuration in a StrictMode-friendly way
-        $marainGlobalToolVersionFromConfig = $InstanceManifest |
+    }
+
+    # Resolve which version of the Marain CLI we should be using
+    # Query the optional '$InstanceManifest.tools' configuration in a StrictMode-friendly way
+    $marainGlobalToolVersionFromConfig = $InstanceManifest |
                                                 Select-Object -ExpandProperty tools -ErrorAction Ignore |
                                                 Select-Object -ExpandProperty marain -ErrorAction Ignore |
                                                 Select-Object -ExpandProperty release -ErrorAction Ignore
-        $marainGlobalToolVersion = $marainGlobalToolVersionFromConfig ? $marainGlobalToolVersionFromConfig : $marainGlobalToolDefaultVersion
+    $requiredMarainGlobalToolVersion = $marainGlobalToolVersionFromConfig ? $marainGlobalToolVersionFromConfig : $marainGlobalToolDefaultVersion
+    if ($marainGlobalToolVersionFromConfig) {
+        Write-Host "Resolved 'marain' .NET global tool version from config"
+    } else {
+        Write-Host "Using default 'marain' .NET global tool version"
+    }
 
-        if ($marainGlobalToolVersionFromConfig) {
-            Write-Host "Resolved 'marain' .NET global tool version from config"
-        } else {
-            Write-Host "Using default 'marain' .NET global tool version"
+    # Check what version is already installed, if any
+    $existingMarainGlobalToolVersion = $((dotnet tool list -g | ? { $_ -match 'marain' }).Replace('marain','').Replace(' ',''))
+
+    if ($existingMarainGlobalToolVersion -ne $requiredMarainGlobalToolVersion) {
+        if ($existingMarainGlobalToolVersion) {
+            Write-Host "Uninstalling existing 'marain' .NET global tool v$requiredMarainGlobalToolVersion"
+            & dotnet tool uninstall -g $marainGlobalToolName
         }
-        
-        Write-Host "Installing 'marain' .NET global tool v$marainGlobalToolVersion"
-        & dotnet tool install -g $marainGlobalToolName --version $marainGlobalToolVersion
+        Write-Host "Installing 'marain' .NET global tool v$requiredMarainGlobalToolVersion"
+        & dotnet tool install -g $marainGlobalToolName --version $requiredMarainGlobalToolVersion
     }
     else {
         Write-Host "Using existing version of 'marain' .NET global tool v$((dotnet tool list -g | ? { $_ -match 'marain' }).Replace('marain','').Replace(' ',''))"

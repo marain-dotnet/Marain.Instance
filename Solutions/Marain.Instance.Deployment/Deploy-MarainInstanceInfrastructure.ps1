@@ -1,5 +1,7 @@
-#Requires -Version 6.0
+#Requires -Version 7.0
 #Requires -Modules Microsoft.PowerShell.Archive
+#Requires -Modules @{ ModuleName = "Az.Accounts"; ModuleVersion = "2.0.0" }
+#Requires -Modules @{ ModuleName = "Az.Resources"; ModuleVersion = "5.0.0" }
 
 Param(
     [string] [Parameter(Mandatory=$true)] $AzureLocation,
@@ -24,83 +26,6 @@ Set-StrictMode -Version 4
 $marainGlobalToolName = 'marain'
 $marainGlobalToolDefaultVersion = '1.1.2'
 
-#
-# azure-cli helper functions
-function Invoke-AzCli
-{
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory=$true)]
-        [string] $Command,
-        
-        [switch] $AsJson,
-        
-        [array] $ExpectedExitCodes = @(0)
-    )
-
-    $cmd = "az $command"
-    if ($asJson) { $cmd = "$cmd -o json" }
-    Write-Verbose "azcli cmd: $cmd"
-    
-    $ErrorActionPreference = 'Continue'     # azure-cli can sometimes write warnings to STDERR, which PowerShell treats as an error
-    $res = Invoke-Expression "$cmd 2>''" -ErrorVariable azCliStdErr
-    
-    $diagnosticInfo = @"
-StdOut:
-$res
-StdErr:
-$azCliStdErr
-"@
-    $ErrorActionPreference = 'Stop'
-    if ($expectedExitCodes -inotcontains $LASTEXITCODE) {
-        Write-Error "azure-cli failed with exit code: $LASTEXITCODE`nDiagnostic information follows:`nCommand: $cmd`n$diagnosticInfo"
-    }
-
-    Write-Verbose $diagnosticInfo
-
-    if ($asJson) {
-        return ($res | ConvertFrom-Json -Depth 30 -AsHashtable)
-    }
-}
-function Invoke-AzCliRestCommand
-{
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory=$true)]
-        [string] $Uri,
-        
-        [Parameter()]
-        [ValidateSet("DELETE", "GET", "PATCH", "POST", "PUT")]
-        [string] $Method = "GET",
-        
-        [Parameter()]
-        [hashtable] $Body,
-        
-        [Parameter()]
-        [hashtable] $Headers = @{}
-    )
-
-    # Ensure we always have the 'Content-Type' header
-    if ( !$Headers.ContainsKey("Content-Type") ) {
-        $Headers += @{ "Content-Type" = "application/json" }
-    }
-
-    if (@("GET", "DELETE") -contains $Method) {
-        $uriEscaped = $Uri.Replace("'", "''")
-
-        $response = Invoke-AzCli -Command "rest --uri '$uriEscaped' --method '$Method'" -AsJson
-
-        return $response
-    }
-    else {
-        $bodyAsEscapedJsonString = (ConvertTo-Json $Body -Depth 30 -Compress).replace('"', '\"').replace(':\', ': \').replace("'", "''")
-        $headersAsEscapedJsonString = (ConvertTo-Json $Headers -Compress).replace('"', '\"').replace(':\', ': \').replace("'", "''")
-
-        $response = Invoke-AzCli -Command "rest --uri '$Uri' --method '$Method' --body '$bodyAsEscapedJsonString' --headers '$headersAsEscapedJsonString'" -AsJson
-
-        return $response
-    }
-}
 function Test-AzureGraphAccess
 {
     [CmdletBinding()]
@@ -396,7 +321,10 @@ class MarainServiceDeploymentContext {
                 $app = Update-AzADApplication -ObjectId $app.Id -ReplyUrl $replyUrls
             }
         } else {
-            $app = New-AzADApplication -DisplayName $DisplayName -IdentifierUris $appUri -HomePage $appUri -ReplyUrls $replyUrls
+            $app = New-AzADApplication -DisplayName $DisplayName -HomePage $appUri -ReplyUrls $replyUrls
+            # Azure no longer allows the '.azurewebsites.net' DNS name to be used as an Identifier URI
+            $appIdUri = "api://$($app.AppId)"
+            $app = Set-AzADApplication -ApplicationId $app.AppId -IdentifierUris $appIdUri
             Write-Host "Created new app with id $($app.AppId)"
         }
 
@@ -437,12 +365,25 @@ class MarainServiceDeploymentContext {
         $Principal = Get-AzAdServicePrincipal -ApplicationId $app.AppId
         if (-not $Principal)
         {
-            New-AzAdServicePrincipal -ApplicationId $app.AppId -DisplayName $AppNameWithSuffix
+            $sp = New-AzAdServicePrincipal -AppId $app.AppId
+            Write-Host ("Service Principal Id for {0} ({1}) is {2}" -f $AppNameWithSuffix, $sp.AppId, $sp.Id)
         }
 
-        $GraphApiAppId = "00000002-0000-0000-c000-000000000000"
-        $SignInAndReadProfileScopeId = "311a71cc-e848-46a1-bdf8-97ff7156d8e6"
-        $app.EnsureRequiredResourceAccessContains($GraphApiAppId, @([ResourceAccessDescriptor]::new($SignInAndReadProfileScopeId, "Scope")))
+        $requiredApiPermissions = @(
+            @{
+                # Azure Graph
+                GraphApiAppId = "00000002-0000-0000-c000-000000000000"
+                Scope = "311a71cc-e848-46a1-bdf8-97ff7156d8e6"  # [User.Read] Sign in and read user profile
+            }
+            @{
+                # Microsoft Graph
+                GraphApiAppId = "00000003-0000-0000-c000-000000000000"
+                Scope = "e1fe6dd8-ba31-4d61-89e7-88639da4683d"  # [User.Read] Sign in and read user profile
+            }
+        )
+        $requiredApiPermissions | ForEach-Object {
+            $app.EnsureRequiredResourceAccessContains($_.GraphApiAppId, @([ResourceAccessDescriptor]::new($_.Scope, "Scope")))
+        }
 
         return $app
     }
@@ -637,32 +578,24 @@ class MarainServiceDeploymentContext {
         $TargetSp = Get-AzADServicePrincipal -ApplicationId $TargetAppId
         $TargetAccessControlServicePrincipalId = $TargetSp.Id
        
-        # Switch back to the Azure Graph API so we have a consistent permissions model across the
-        # rest of the automated process - we should migrate to use MS Graph for all AAD integration
-        # as part of a future major update
-        $RequestBody = @{
-            id = $TargetAppRoleId
-            principalId = $ClientIdentityServicePrincipalId
-            resourceId = $TargetAccessControlServicePrincipalId
+        $existingAppRoleAssignmentsResp = Invoke-AzRestMethod -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$TargetAccessControlServicePrincipalId/appRoleAssignedTo"
+        if ($existingAppRoleAssignmentsResp.StatusCode -ge 400) {
+            throw "Error querying AppRole assignments for appId $TargetAppId : $($existingAppRoleAssignmentsResp.Content)"
         }
-        Write-Host ($RequestBody | ConvertTo-Json)
 
-        $uri = "https://graph.windows.net/$($this.InstanceContext.TenantId)/servicePrincipals/$ClientIdentityServicePrincipalId/appRoleAssignments?api-version=1.6"
-
-        # It proved problematic to get consistent results when querying existing role membership in a pipeline, so 
-        # now we just ignore the 'role already assigned' error
-        try {
-            $response = Invoke-AzCliRestCommand -Uri $uri `
-                                                -Method "POST" `
-                                                -Body $RequestBody
-            Write-Host "Assigned role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
-        }
-        catch {
-            if ($_.Exception.Message -match 'Permission being assigned already exists on the object') {
-                Write-Host "Already assigned: role $TargetAppRoleId for app $TargetAppId sp: $TargetAccessControlServicePrincipalId to client $ClientAppNameWithSuffix (sp: $ClientIdentityServicePrincipalId)"
+        $existingAppRoleAssignment = $existingAppRoleAssignmentsResp.Content |
+                                        ConvertFrom-Json -Depth 100 |
+                                        Select-Object -ExpandProperty Value |
+                                        ? { $_.principalId -eq $ClientIdentityServicePrincipalId -and $_.appRoleId -eq $TargetAppRoleId }
+        if (!$existingAppRoleAssignment) {
+            $body = @{
+                appRoleId = $TargetAppRoleId
+                principalId = $ClientIdentityServicePrincipalId
+                resourceId = $TargetAccessControlServicePrincipalId
             }
-            else {
-                throw $_
+            $addAppRoleAssignmentResp = Invoke-AzRestMethod -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$TargetAccessControlServicePrincipalId/appRoleAssignedTo"
+            if ($addAppRoleAssignmentResp.StatusCode -ge 400) {
+                throw "Error trying to assign principal $ClientIdentityServicePrincipalId the AppRole $TargetAppRoleId appId $TargetAppId : $($addAppRoleAssignmentResp.Content)"
             }
         }
     }
@@ -768,9 +701,18 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
 
         $this.ObjectId = $objectId
 
-        $this.GraphApiAppUri = ("https://graph.windows.net/{0}/applications/{1}?api-version=1.6" -f $this.InstanceDeploymentContext.TenantId, $objectId)
-        $response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri
-        $this.Manifest = $response
+        # We have now migrated away from using the deprecated Azure Graph API, using Microsoft Graph instead
+        $this.GraphApiAppUri = "https://graph.microsoft.com/v1.0/applications/$objectId"
+        
+        # NOTE: We use the REST API directly, as the response object returned by 'Get-AzADApplication' has property names with initial capital
+        #       letters, which are incompatible when used as payload for the MS Graph REST API
+        $appLookupResp = Invoke-AzRestMethod -Uri $this.GraphApiAppUri
+        if ($appLookupResp.StatusCode -ge 400) {
+            throw "Error whilst querying the application via MS Graph [appId=$appId] [objectId=$objectId] : $($appLookupResp.Content)"
+        }
+        $this.Manifest =  $appLookupResp |
+                            Select-Object -ExpandProperty Content |
+                            ConvertFrom-JSON -depth 100
     }
 
     [string]$ObjectId
@@ -782,32 +724,46 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
         [ResourceAccessDescriptor[]] $accessRequirements)
     {
         $MadeChange = $false
-        $RequiredResourceAccess = $this.Manifest.requiredResourceAccess
+
+        [array]$RequiredResourceAccess = $this.Manifest | Select-Object -ExpandProperty requiredResourceAccess
+
+        # Create top-level object for any APIs that are not currently
         $ResourceEntry = $RequiredResourceAccess | Where-Object {$_.resourceAppId -eq $ResourceId }
         if (-not $ResourceEntry) {
             $MadeChange = $true
-            $ResourceEntry = @{resourceAppId=$ResourceId;resourceAccess=@()}
+            $ResourceEntry = @{resourceAccess=@(); resourceAppId=$ResourceId}
             $RequiredResourceAccess += $ResourceEntry
         }
         
+        # Add any requiredResourceAccess entries that are not configured on the application object
         foreach ($access in $accessRequirements) {
             $RequiredAccess = $ResourceEntry.resourceAccess| Where-Object {$_.id -eq $access.Id -and $_.type -eq $access.Type}
             if (-not $RequiredAccess) {
                 Write-Host "Adding '$ResourceId : $($access.id)' required resource access"
         
-                $RequiredAccess = @{id=$access.Id;type="Scope"}
+                $RequiredAccess = @{id=$access.Id; type="Scope"}
                 $ResourceEntry.resourceAccess += $RequiredAccess
                 $MadeChange = $true
             }
         }
 
         if ($MadeChange) {
+            # Configure the payload for updating the 'requiredResourceAccess' via the REST API
             $PatchRequiredResourceAccess = @{requiredResourceAccess=$RequiredResourceAccess}
-            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
-                                                -Method "PATCH" `
-                                                -Body $PatchRequiredResourceAccess
-            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri
-            $this.Manifest = $Response
+
+            $Response = Invoke-AzRestMethod -Uri $this.GraphApiAppUri `
+                                            -Method PATCH `
+                                            -Payload (ConvertTo-Json $PatchRequiredResourceAccess -Compress -Depth 100)
+            if ($Response.StatusCode -ge 400) {
+                throw "Error whilst granting resourceAccess for appId $($this.Manifest.appId) : $($Response.Content)"
+            }
+
+            # Update our reference to the updated application
+            # NOTE: We use the REST API directly, as the response object returned by 'Get-AzADApplication' has property names with initial capital
+            #       letters, which are incompatible when used as payload for the MS Graph REST API
+            $this.Manifest = Invoke-AzRestMethod -Uri $this.GraphApiAppUri |
+                                Select-Object -ExpandProperty Content |
+                                ConvertFrom-JSON -Depth 100
         }
     }
 
@@ -836,11 +792,15 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
             $AppRoles = $this.Manifest.appRoles + $AppRole
     
             $PatchAppRoles = @{appRoles=$AppRoles}
-            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri `
-                                                -Method "PATCH" `
-                                                -Body $PatchAppRoles
-            $Response = Invoke-AzCliRestCommand -Uri $this.GraphApiAppUri
-            $this.Manifest = $Response
+            $Response = Invoke-AzRestMethod -Uri $this.GraphApiAppUri `
+                                            -Method "PATCH" `
+                                            -Payload ($PatchAppRoles | ConvertTo-Json -Depth 100)
+            if ($Response.StatusCode -ge 400) {
+                throw "Error whilst configuring AppRoles for appId $($this.Manifest.appId) : $($Response.Content)"
+            }
+            $this.Manifest = Invoke-AzRestMethod -Uri $this.GraphApiAppUri |
+                                    Select-Object -ExpandProperty Content |
+                                    ConvertFrom-Json -Depth 100
         }
     }
 }
@@ -857,9 +817,6 @@ try {
     if ($null -eq $azAvailable) {
         Write-Error "Az PowerShell modules are not installed - they can be installed using 'Install-Module Az -AllowClobber -Force'"
     }
-    $azModuleInfo = Import-Module Az -PassThru
-    Write-Host "Using Az module version $($azModuleInfo.Version)"
-
     # Ensure PowerShell Az is logged-in
     if ($null -eq (Get-AzContext) -and [Environment]::UserInteractive) {
         Connect-AzAccount -Subscription $SubscriptionId -Tenant $AadTenantId
@@ -870,43 +827,6 @@ try {
 
     # Ensure we're connected to the correct subscription
     Set-AzContext -SubscriptionId $SubscriptionId -Tenant $AadTenantId | Out-Null
-
-
-    # check that the azure-cli is installed
-    try {
-        Invoke-Expression 'az --version' | Out-Null
-    }
-    catch {
-        Write-Error "The Azure-cli must be installed in order to run this deployment process"
-    }
-
-    # check that the azure-cli is logged-in
-    try {
-        $azCliToken = $(& az account get-access-token) | ConvertFrom-Json
-        if ([datetime]$azCliToken.expiresOn -le [datetime]::Now) {
-            throw   # force a login
-        }
-    }
-    catch {
-        # login with the typical environment variables, if available
-        if ( (Test-Path env:\AZURE_CLIENT_ID) -and (Test-Path env:\AZURE_CLIENT_SECRET) ){
-            & az login --service-principal -u "$env:AZURE_CLIENT_ID" -p "$env:AZURE_CLIENT_SECRET" --tenant $AadTenantId
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "There was a problem logging into the Azure-cli using environment variable configuration - check any previous messages"
-            }
-        }
-        # Azure pipeline processes seem to report themselves as interactive - at least on linux agents
-        elseif ( [Environment]::UserInteractive -and !(Test-Path env:\SYSTEM_TEAMFOUNDATIONSERVERURI) ) {
-            & az login --tenant $AadTenantId | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "There was a problem logging into the Azure-cli - check any previous messages"
-            }
-        }
-        else {
-            Write-Error "When running non-interactively the process must already be logged-in to the Azure-cli or have the SPN details setup in environment variables"
-        }
-    }
-    & az account set --subscription $SubscriptionId | Out-Null
 
     if (!(Test-AzureGraphAccess)) {
         Write-Warning "No graph token available. AAD operations will not be performed."

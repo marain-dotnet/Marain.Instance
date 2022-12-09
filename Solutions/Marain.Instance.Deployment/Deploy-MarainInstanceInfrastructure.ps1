@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 #Requires -Modules Microsoft.PowerShell.Archive
-#Requires -Modules @{ ModuleName = "Az.Accounts"; ModuleVersion = "2.0.0" }
-#Requires -Modules @{ ModuleName = "Az.Resources"; ModuleVersion = "5.0.0" }
+#Requires -Modules @{ ModuleName = "Az.Accounts"; ModuleVersion = "2.7.4" }
+#Requires -Modules @{ ModuleName = "Az.Resources"; ModuleVersion = "5.4.0" }
 
 Param(
     [string] [Parameter(Mandatory=$true)] $AzureLocation,

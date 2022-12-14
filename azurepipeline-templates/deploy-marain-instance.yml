@@ -10,25 +10,12 @@ parameters:
   workingDirectory:
     
 steps:
-- task: AzureCLI@1
-  displayName: 'Prepare azure-cli environment'
-  inputs:
-    azureSubscription: '${{ parameters.azureServiceConnection }}'
-    scriptLocation: inlineScript
-    inlineScript: |
-      echo "##vso[task.setvariable variable=AZURE_CLIENT_ID;issecret=true]${servicePrincipalId}"
-      echo "##vso[task.setvariable variable=AZURE_CLIENT_SECRET;issecret=true]${servicePrincipalKey}"
-    addSpnToEnvironment: true
-    failOnStandardError: true
-
 - task: AzurePowerShell@5
   displayName: 'Deploy Marain instance'
   inputs:
     azureSubscription: '${{ parameters.azureServiceConnection }}'
     ScriptType: InlineScript
     Inline: |
-      $env:AZURE_CLIENT_ID = "$(AZURE_CLIENT_ID)"
-      $env:AZURE_CLIENT_SECRET = "$(AZURE_CLIENT_SECRET)"
       $ProgressPreference = "SilentlyContinue"
       ./Deploy-MarainInstanceInfrastructure.ps1 `
             -AzureLocation ${{ parameters.azureLocation }} `

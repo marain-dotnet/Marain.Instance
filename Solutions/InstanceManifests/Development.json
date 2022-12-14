@@ -2,7 +2,7 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "3.0.0"
+      "release": "3.0.1-deploy-fixes.6"
     },
     "Marain.Operations": {
       "omit": false,
@@ -10,15 +10,15 @@
     },
     "Marain.Workflow": {
       "omit": false,
-      "release": "0.4.0"
+      "release": "0.4.1-deploy-fix.5"
     },
     "Marain.Claims": {
       "omit": false,
       "release": "5.0.0"
     },
     "Marain.UserNotifications": {
-      "omit": false,
-      "release": "0.3.9"
+      "omit": true,
+      "release": "0.3.11-deploy-fix.8"
     }
   },
   "tools": {

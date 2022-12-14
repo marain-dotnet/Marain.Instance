@@ -2,7 +2,7 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "3.0.1-deploy-fixes.9"
+      "release": "3.0.1-deploy-fixes.20"
     },
     "Marain.Operations": {
       "omit": false,

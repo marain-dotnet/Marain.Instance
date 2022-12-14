@@ -873,8 +873,11 @@ try {
     }
 
     # Check what version is already installed, if any
-    [string]$existingMarainGlobalTool = & dotnet tool list -g | ? { $_ -match 'marain' }
-    $existingMarainGlobalToolVersion = $existingMarainGlobalTool.Replace('marain','').Replace(' ','')
+    $existingMarainGlobalTool = & dotnet tool list -g | ? { $_ -match 'marain' }
+    $existingMarainGlobalToolVersion = ""
+    if ($existingMarainGlobalTool) {
+        $existingMarainGlobalToolVersion = $existingMarainGlobalTool.Replace('marain','').Replace(' ','')
+    }
 
     if ($existingMarainGlobalToolVersion -ne $requiredMarainGlobalToolVersion) {
         if ($existingMarainGlobalToolVersion) {

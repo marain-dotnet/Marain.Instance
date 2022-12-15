@@ -720,7 +720,7 @@ class AzureAdAppWithGraphAccess : AzureAdApp {
         [array]$RequiredResourceAccess = $this.Manifest | Select-Object -ExpandProperty RequiredResourceAccess
 
         # Create top-level object for any APIs that are not currently
-        $ResourceEntry = $RequiredResourceAccess | Where-Object { $_.ResourceAppId -eq $ResourceId }
+        $ResourceEntry = $RequiredResourceAccess | Where-Object { $_ -and $_.ResourceAppId -eq $ResourceId }
         if (-not $ResourceEntry) {
             $MadeChange = $true
             $ResourceEntry = @{

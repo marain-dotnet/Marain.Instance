@@ -324,7 +324,7 @@ class MarainServiceDeploymentContext {
             $app = New-AzADApplication -DisplayName $DisplayName -HomePage $appUri -ReplyUrls $replyUrls
             # Azure no longer allows the '.azurewebsites.net' DNS name to be used as an Identifier URI
             $appIdUri = "api://$($app.AppId)"
-            $app = Set-AzADApplication -ApplicationId $app.AppId -IdentifierUris $appIdUri
+            Set-AzADApplication -ApplicationId $app.AppId -IdentifierUris $appIdUri
             Write-Host "Created new app with id $($app.AppId)"
         }
 

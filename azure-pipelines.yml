@@ -108,12 +108,12 @@ stages:
         Inline: |
           $prefix = "$(Marain_ResourcePrefix)"
           $suffix = "$(Endjin_EnvironmentSuffix)"
-          @("workflow","operations","tenancy","instance") | % {
+          @("claims","usernotifications","workflow","operations","tenancy","instance") | % {
             $groupName = "{0}.{1}.{2}" -f $prefix, $_, $suffix
             Write-Host ("Checking resource group: {0}" -f $groupName)
             Get-AzResourceGroup $groupName -ErrorAction SilentlyContinue | Select -First 1 | Remove-AzResourceGroup -Verbose -Force
           }
-          @("tenancy","operationscontrol","workfloweng","workflowmi","tenantadmin") | % {
+          @("tenancy","operationscontrol","workfloweng","workflowmi","tenantadmin","martdclaims","martdusrnotidel","martdusrnotimng") | % {
               $appName = "{0}{1}{2}" -f $prefix, $suffix, $_
               Write-Host ("Checking AzureAD application: {0}" -f $appName)
               Get-AzADApplication -DisplayName $appName | Select -First 1 | Remove-AzADApplication -Verbose

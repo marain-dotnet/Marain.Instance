@@ -16,12 +16,21 @@ trigger: none
 pr:
 - master
 
+parameters:
+- name: MarainInstanceType
+  type: string
+  default: Stable
+  displayName: Choose which Marain Instance Manifest to use when running the test deployment
+  values:
+  - Stable
+  - Development
+
 variables:
   Endjin_AzureLocation: northeurope
   Endjin_SubscriptionId: 98333d29-7302-4f93-a51d-70c49ca7e180
   Endjin_AzureServiceConnection: endjin-internal-development
   Endjin_EnvironmentSuffix: td
-  Marain_Instance_Type: Stable
+  Marain_Instance_Type: ${{ parameters.MarainInstanceType }}
   Marain_ResourcePrefix: mar
 
 
@@ -90,7 +99,7 @@ stages:
     pool:
       vmImage: 'ubuntu-latest'
     steps:
-    - task: AzurePowerShell@4
+    - task: AzurePowerShell@5
       condition: and(succeeded(), eq(variables['SkipCleardown'], ''))
       displayName: 'Delete Azure resources'
       inputs:
@@ -107,7 +116,7 @@ stages:
           @("tenancy","operationscontrol","workfloweng","workflowmi","tenantadmin") | % {
               $appName = "{0}{1}{2}" -f $prefix, $suffix, $_
               Write-Host ("Checking AzureAD application: {0}" -f $appName)
-              Get-AzADApplication -DisplayName $appName | Select -First 1 | Remove-AzADApplication -Verbose -Force
+              Get-AzADApplication -DisplayName $appName | Select -First 1 | Remove-AzADApplication -Verbose
           }
         azurePowerShellVersion: latestVersion
         # uncomment the following line if there is a need to use an older version of azurePowershell

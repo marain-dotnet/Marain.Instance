@@ -2,23 +2,23 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "3.0.1-deploy-fixes.32"
+      "release": "3.0.2"
     },
     "Marain.Operations": {
       "omit": false,
-      "release": "3.0.0"
+      "release": "3.0.1"
     },
     "Marain.Workflow": {
       "omit": false,
-      "release": "0.4.1-deploy-fix.7"
+      "release": "0.4.1"
     },
     "Marain.Claims": {
       "omit": false,
-      "release": "5.0.0"
+      "release": "5.1.0"
     },
     "Marain.UserNotifications": {
       "omit": false,
-      "release": "0.4.0-deploy-fix.15"
+      "release": "0.4.0"
     }
   },
   "tools": {

@@ -108,16 +108,18 @@ stages:
         Inline: |
           $prefix = "$(Marain_ResourcePrefix)"
           $suffix = "$(Endjin_EnvironmentSuffix)"
-          @("workflow","operations","tenancy","instance") | % {
-            $groupName = "{0}.{1}.{2}" -f $prefix, $_, $suffix
-            Write-Host ("Checking resource group: {0}" -f $groupName)
-            Get-AzResourceGroup $groupName -ErrorAction SilentlyContinue | Select -First 1 | Remove-AzResourceGroup -Verbose -Force
-          }
-          @("tenancy","operationscontrol","workfloweng","workflowmi","tenantadmin") | % {
-              $appName = "{0}{1}{2}" -f $prefix, $suffix, $_
+          @("claims","notifications","workflow","operations","tenancy","instance") |
+            ForEach-Object -Parallel {
+              $groupName = "{0}.{1}.{2}" -f $using:prefix, $_, $using:suffix
+              Write-Host ("Checking resource group: {0}" -f $groupName)
+              Get-AzResourceGroup $groupName -ErrorAction SilentlyContinue | Select -First 1 | Remove-AzResourceGroup -Verbose -Force
+            }
+          @("tenancy","operationscontrol","workfloweng","workflowmi","tenantadmin","claims","usrnotidel","usrnotimng") |
+            ForEach-Object -Parallel {
+              $appName = "{0}{1}{2}" -f $using:prefix, $using:suffix, $_
               Write-Host ("Checking AzureAD application: {0}" -f $appName)
               Get-AzADApplication -DisplayName $appName | Select -First 1 | Remove-AzADApplication -Verbose
-          }
+            }
         azurePowerShellVersion: latestVersion
         # uncomment the following line if there is a need to use an older version of azurePowershell
         # e.g. due to a known issue in the current release (like we had in Sept 2020)

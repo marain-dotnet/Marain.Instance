@@ -2,7 +2,7 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "3.0.3-PullRequest0479.3"
+      "release": "3.0.3"
     },
     "Marain.Operations": {
       "omit": false,

@@ -2,23 +2,23 @@
   "services": {
     "Marain.Tenancy": {
       "omit": false,
-      "release": "3.0.3"
+      "release": "3.0.5-storage-https-only.3"
     },
     "Marain.Operations": {
       "omit": false,
-      "release": "3.0.1"
+      "release": "3.0.2-storage-https-only.6"
     },
     "Marain.Workflow": {
       "omit": false,
-      "release": "0.4.1"
+      "release": "0.4.3-storage-https-only.1"
     },
     "Marain.Claims": {
       "omit": false,
-      "release": "5.1.0"
+      "release": "5.1.2-storage-https-only.2"
     },
     "Marain.UserNotifications": {
       "omit": false,
-      "release": "0.4.0"
+      "release": "0.4.1-storage-https-only.5"
     }
   },
   "tools": {

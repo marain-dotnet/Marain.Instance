@@ -106,6 +106,12 @@ stages:
         azureSubscription: '$(Endjin_AzureServiceConnection)'
         ScriptType: InlineScript
         Inline: |
+          trap {
+            Write-Host -f Red $_.Exception.Message
+            Write-Host -f Yellow $_.InvocationInfo.PositionMessage
+            Write-Host -f Yellow $_.ScriptStackTrace
+          }
+
           $prefix = "$(Marain_ResourcePrefix)"
           $suffix = "$(Endjin_EnvironmentSuffix)"
           @("claims","notifications","workflow","operations","tenancy","instance") |

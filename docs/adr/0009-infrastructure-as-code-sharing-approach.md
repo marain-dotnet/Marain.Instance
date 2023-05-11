@@ -42,7 +42,9 @@ This option involves us hosting an Azure Container Registry that we make publicl
 * The ACR could also be used to release & host Marain container images in the future.
 
 #### Disadvantages
-* Costs associated with operating the ACR, both resource and bandwidth costs.
+* Costs associated with operating the ACR, both resource and bandwidth costs
+    * Basic service: ~£20 per month
+    * Resilient service: ~£85 per month
 * The Marain deployment process becomes dependent on network connectivity to the public registry - although this is arguably no different to the current requirement for access to GitHub (needed to download release artefacts).
 
 

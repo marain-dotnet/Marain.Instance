@@ -15,7 +15,7 @@ Proposed
 
 Given this context and goals, the challenge is how to combine the use of shared Bicep modules (to de-duplicate the infrastructure-as-code) whilst still having a low friction means of deploying the Marain stack.  The absence of a defacto public Bicep module repository that can host the Marain-specific modules means there isn't an obvious way to share these modules without additional work.
 
-***NOTE**: A more general, but related, Bicep reuse [ADR](https://github.com/endjin/Endjin.RecommendedPractices.Bicep/blob/main/docs/adr/0002-sharing-bicep-modules.md) was written before it became clear that the public Bicep registry would not be 'open to all' in the same way that nuget.org or Docker Hub are.*
+***NOTE**: A more general, but related, Bicep reuse [ADR](https://github.com/endjin/Endjin.RecommendedPractices.Bicep/blob/main/docs/adr/0002-sharing-bicep-modules.md) was written before it became clear that the public Bicep registry would not be 'open to all', for publishing, in the same way that nuget.org or Docker Hub are.*
 
 In the ideal world the Marain deployment would use Bicep modules in the [Endjin.RecommendedPractices.Bicep repository](https://github.com/endjin/Endjin.RecommendedPractices.Bicep) so as to avoid duplication as well as a set of Marain-specific modules that are re-usable across different Marain services.  This means that the envisioned deployment process would need to interact with 3 sets of Bicep modules:
 
@@ -39,6 +39,7 @@ This option involves us hosting an Azure Container Registry that we make publicl
 * Simplest and lowest friction option for the Marain consumer.
 * Easy to integrate with our existing release process.
 * Some flexibility for where the source for the shared Bicep modules is stored, as they won't be primarily consumed as 'source' artefacts.
+    * Since the deployment tooling can reference a public distribution point, the modules would not have to be available alongside the source repository in order to support the "'git clone' & deploy" approach
 * The ACR could also be used to release & host Marain container images in the future.
 
 #### Disadvantages

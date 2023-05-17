@@ -90,6 +90,7 @@ The release process for each service would include generating an ARM template fr
 
 The following hybrid approach will be taken:
 
+* A monolithic generated ARM template will be provided as a release artefact for each service, to facilitate OSS deployment scenarios
 * Shared Bicep modules will be hosted on a non-public ACR
 * Source references to such modules will use an [alias](https://github.com/MicrosoftDocs/azure-docs/blob/main/articles/azure-resource-manager/bicep/bicep-config-modules.md#aliases-for-modules) to de-couple them from the hosted ACR infrastructure
 * The hosted ACR will adopt a repository structure that will support logical grouping of modules with different security requirements (e.g. public, restricted, private etc.)

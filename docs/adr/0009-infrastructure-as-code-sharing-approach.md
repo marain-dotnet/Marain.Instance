@@ -44,8 +44,8 @@ This option involves us hosting an Azure Container Registry that we make publicl
 
 #### Disadvantages
 * Costs associated with operating the ACR, both resource and bandwidth costs
-    * Basic service: ~£20 per month
-    * Resilient service: ~£85 per month
+    * Basic service: ~£20 per month (based on ACR Standard SKU)
+    * Resilient service: ~£85 per month (based on ACR Premium SKU with geo-replication)
 * The Marain deployment process becomes dependent on network connectivity to the public registry - although this is arguably no different to the current requirement for access to GitHub (needed to download release artefacts).
 
 
@@ -88,8 +88,25 @@ The release process for each service would include generating an ARM template fr
 
 ## Decision
 
-TBC
+The following hybrid approach will be taken:
+
+* Shared Bicep modules will be hosted on a non-public ACR
+* Source references to such modules will use an [alias](https://github.com/MicrosoftDocs/azure-docs/blob/main/articles/azure-resource-manager/bicep/bicep-config-modules.md#aliases-for-modules) to de-couple them from the hosted ACR infrastructure
+* The hosted ACR will adopt a repository structure that will support logical grouping of modules with different security requirements (e.g. public, restricted, private etc.)
+* 3rd parties entitled to access the hosted modules will do so via ACR [repository-scoped](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-repository-scoped-permissions) access tokens
+* OSS repositories that consume these hosted modules should contain guidance on:
+    * Where to find the source code for these modules
+    * How to request access to our 'convenience' hosted Bicep module registry (exact process and requirements TBC)
+* Closed-source scenarios that require access to these hosted modules will be handled as part of the underlying engagement or procured service. For example:
+    * Access to hosted ACR provided by default
+    * Access to underlying private GitHub repos provided on request
 
 ## Consequences
 
-TBC
+### Positive
+* Everything will work the same as currently developed (i.e. referencing our internal ACR)
+* Minimises upfront work to support what may be a lightly used scenario (i.e. unknown parties using our OSS IP), by not needing to build a complex re-packaging solution
+* Only requires a single container registry to support external access as there is no need for a truly public/anonymous ACR - this minimises costs.
+
+### Negative
+* Requires assigning each repository to a [scope map](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-repository-scoped-permissions#concepts) as ACR does not currently support a wildcard-style approach.  This would likely be added to the Bicep module CI/CD process.
